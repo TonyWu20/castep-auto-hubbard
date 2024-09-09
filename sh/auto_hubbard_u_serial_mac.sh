@@ -10,18 +10,34 @@ fi
 # 1. Setup before
 init_u=0.000000010000000
 init_elec_energy_tol=1e-5
+castep_command="mpirun -np 4 castep_alphaOverU.mpi"
 
+function faux_castep_run {
+	sleep 3
+	touch "$1.castep"
+	sleep 3
+	echo "           1           1 Total:    4.88454712510949       Mz:" >>"$1.castep"
+	echo "           1           2 Total:    2.04480063601341       Mz:" >>"$1.castep"
+	echo "           1           1 Total:    4.88222767868911       Mz:" >>"$1.castep"
+	echo "           1           2 Total:    2.03625090967629       Mz:" >>"$1.castep"
+	echo "           1           1 Total:    4.88417863385162       Mz:" >>"$1.castep"
+	echo "           1           2 Total:    2.03022846329140       Mz:" >>"$1.castep"
+	sleep 2
+	echo "Finalisation time" >>"$1.castep"
+}
+
+# Usage: cell_before cell_file_path U_value
 function cell_before {
 	local cell_file=$1
 	local i=$2
-	sed -i '' $"s/\r$//" "$cell_file"
-	sed -i '' "s/d: 0.*/d: $init_u/g" "$cell_file"
-	echo "Initiate U to 0"
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
+	sed -i '' $"s/\r$//" "$cell_file"
+	sed -i '' "s/d:.*/d: $u_value/g" "$cell_file"
+	echo "Initiate U to $u_value"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $u_value" >>"$cell_file".bak
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
 	mv "$cell_file".bak "$cell_file"
 }
 
@@ -29,11 +45,13 @@ function param_before_perturb {
 	local param_file=$1
 	# remove \r from Windows generated files
 	sed -i '' $"s/\r$//" "$param_file"
-	sed <"$param_file" '/^task.*/a \ 
+	sed -i '' '/^task.*/a \ 
 !continuation : default \
 iprint=3 \
-' | sed "s/\(elec_energy_tol :\).*/\1 $init_elec_energy_tol/" | sed '/^fine_grid_scale.*/d' | sed -E "s/(grid_scale)[ :]+[0-9.]+/\1 : 1.750000000000000/" >"$param_file".bak
-	mv "$param_file".bak "$param_file"
+' "$param_file"
+	sed -i '' "s/\(elec_energy_tol :\).*/\1 $init_elec_energy_tol/" "$param_file"
+	sed -i '' '/^fine_grid_scale.*/d' "$param_file"
+	sed -i '' -E "s/(grid_scale)[ :]+[0-9.]+/\1 : 1.750000000000000/" "$param_file"
 }
 
 function setup_before_perturb {
@@ -100,6 +118,18 @@ function setup_after_perturb {
 	setup_next_folder=$dest
 }
 
+function start_job {
+	local current_dir
+	current_dir=$(pwd)
+	local job_dir=$1
+	local job_name
+	job_name=$(find ./"$job_dir" -d 1 -type f -name "*.cell" | awk -F / '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	cd "$job_dir" || exit
+	# $castep_command "$job_name"
+	faux_castep_run "$job_name" &
+	cd "$current_dir" || exit
+}
+
 function monitor_job_done {
 	local dest=$1
 	# get job name by extracting filestem
@@ -151,16 +181,18 @@ function read_data {
 }
 
 cd "$SEED_PATH" || exit
-for ((i = 0; i < 2; i += 2)); do
+printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
+for ((i = 0; i < 6; i += 2)); do
 	setup_before_perturb $i
 	init_folder="$setup_init_folder"
 	# run castep
 	# castep $SEED_PATH/$SEED_NAME
 	# monitor result
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
+	start_job "$init_folder"
 	monitor_job_done "$init_folder"
 	# echo  "Setup next perturbation step\r"
 	setup_after_perturb $i 1 "$init_folder"
 	next_folder=$setup_next_folder
+	start_job "$next_folder"
 	monitor_job_done "$next_folder"
 done
