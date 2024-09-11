@@ -18,6 +18,8 @@ init_elec_energy_tol=1e-5
 # Example:
 # castep_command="mpirun -np 4 castep_alphaOverU.mpi"
 castep_command="faux_castep_run"
+# Key: kill all tasks when hitting "ctrl+c"
+trap 'ps -ef | grep \"auto_hubbard.*\" | awk \"{print \"$2\"}\" | xargs -I {} kill {}' INT
 
 function faux_castep_run {
 	sleep 3

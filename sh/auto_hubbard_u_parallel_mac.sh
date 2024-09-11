@@ -18,6 +18,10 @@ init_elec_energy_tol=1e-5
 # Example:
 # castep_command="mpirun -np 4 castep_alphaOverU.mpi"
 castep_command="faux_castep_run"
+# Maximum parallel jobs "$N"
+N=4
+
+# 2. Functions' definitions
 
 function faux_castep_run {
 	sleep 3
@@ -42,13 +46,11 @@ function cell_before {
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i '' $"s/\r$//" "$cell_file"
-	# Fix U to $init_u
-	sed -i '' "s/d:.*/d: $init_u/g" "$cell_file"
+	sed -i '' "s/d:.*/d: $u_value/g" "$cell_file"
 	echo "Initiate U to $u_value"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
-	# Adjust U_alpha to $u_value
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $u_value" >>"$cell_file".bak
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
 	mv "$cell_file".bak "$cell_file"
 }
 
@@ -192,27 +194,46 @@ function read_data {
 	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result.csv
 }
 
+# 3. Main process
+
 function main {
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
-	for ((i = 0; i < $1; i += $2)); do
-		setup_before_perturb $i
-		init_folder="$setup_init_folder"
-		# run castep
-		# castep $SEED_PATH/$SEED_NAME
-		# monitor result
-		start_job "$init_folder"
-		monitor_job_done "$init_folder"
-		# echo  "Setup next perturbation step\r"
-		setup_after_perturb $i 1 "$init_folder"
-		next_folder=$setup_next_folder
-		start_job "$next_folder"
-		monitor_job_done "$next_folder"
+	for i in $(seq 0 "$2" "$1"); do
+		(
+			# .. do your stuff here
+			setup_before_perturb "$i"
+			init_folder="$setup_init_folder"
+			# run castep
+			# castep $SEED_PATH/$SEED_NAME
+			# monitor result
+			start_job "$init_folder"
+			monitor_job_done "$init_folder"
+			# echo  "Setup next perturbation step\r"
+			setup_after_perturb "$i" 1 "$init_folder"
+			next_folder=$setup_next_folder
+			start_job "$next_folder"
+			monitor_job_done "$next_folder"
+		) &
+
+		# allow to execute up to $N jobs in parallel
+		if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
+			# now there are $N jobs already running, so wait here for any job
+			# to be finished so there is a place to start next one.
+			wait -n
+		fi
+
 	done
+
+	# no more jobs to be started but wait for pending jobs
+	# (all need to be finished)
+	wait
+
+	echo "all done"
 }
 
-# Run the serial program.
-# 1st integer after `main` is the upper limit of U,
+# Run the parallel program.
+# 1st integer after `main` is the upper limit of U (U <=number)
 # 2nd integer is the increment step of U
-# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10.
+# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10, 12.
 main 12 2
