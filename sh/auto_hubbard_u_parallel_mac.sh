@@ -220,7 +220,8 @@ function main {
 		if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
 			# now there are $N jobs already running, so wait here for any job
 			# to be finished so there is a place to start next one.
-			wait -n
+			# ! mac does not have "-n" option as gnu linux
+			wait
 		fi
 
 	done
