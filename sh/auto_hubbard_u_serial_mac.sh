@@ -18,8 +18,6 @@ init_elec_energy_tol=1e-5
 # Example:
 # castep_command="mpirun -np 4 castep_alphaOverU.mpi"
 castep_command="faux_castep_run"
-# Key: kill all tasks when hitting "ctrl+c"
-trap 'ps -ef | grep \"auto_hubbard.*\" | awk \"{print \"$2\"}\" | xargs -I {} kill {}' INT
 
 function faux_castep_run {
 	sleep 3
@@ -37,6 +35,18 @@ function faux_castep_run {
 	echo "Finalisation time" >>"$1.castep"
 }
 
+function hubbard_u {
+	local i=$1
+	local u_value
+	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
+	sed -i '' "s/d:.*/d: $u_value/g" "$cell_file"
+	echo "Initiate U to $u_value"
+	printf "\n" >>"$cell_file"
+	cat "$cell_file" >"$cell_file".bak
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
+	mv "$cell_file".bak "$cell_file"
+}
+
 # Usage: cell_before cell_file_path U_value
 function cell_before {
 	local cell_file=$1
@@ -44,12 +54,7 @@ function cell_before {
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i '' $"s/\r$//" "$cell_file"
-	sed -i '' "s/d:.*/d: $u_value/g" "$cell_file"
-	echo "Initiate U to $u_value"
-	printf "\n" >>"$cell_file"
-	cat "$cell_file" >"$cell_file".bak
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
-	mv "$cell_file".bak "$cell_file"
+	hubbard_u "$i"
 }
 
 function param_before_perturb {

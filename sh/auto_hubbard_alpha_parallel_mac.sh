@@ -1,5 +1,5 @@
 #! /bin/bash
-# Automatic hubbard_alpha increment calculation workflow
+# Automatic hubbard_U increment calculation workflow
 # !!!! Caution: substitute function `faux_castep_run` by "$castep_command"
 #
 # Please read comments in this script if you want to understand and/or
@@ -18,6 +18,10 @@ init_elec_energy_tol=1e-5
 # Example:
 # castep_command="mpirun -np 4 castep_alphaOverU.mpi"
 castep_command="faux_castep_run"
+# Maximum parallel jobs "$N"
+N=4
+
+# 2. Functions' definitions
 
 function faux_castep_run {
 	sleep 3
@@ -39,7 +43,7 @@ function hubbard_alpha {
 	local i=$1
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i "s/d:.*/d: $init_u/g" "$cell_file"
+	sed -i '' "s/d:.*/d: $init_u/g" "$cell_file"
 	echo "Initiate U to $init_u"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
@@ -53,21 +57,21 @@ function cell_before {
 	local i=$2
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i $"s/\r$//" "$cell_file"
+	sed -i '' $"s/\r$//" "$cell_file"
 	hubbard_alpha "$i"
 }
 
 function param_before_perturb {
 	local param_file=$1
 	# remove \r from Windows generated files
-	sed -i $"s/\r$//" "$param_file"
-	sed -i '/^task.*/a \ 
+	sed -i '' $"s/\r$//" "$param_file"
+	sed -i '' '/^task.*/a \ 
 !continuation : default \
 iprint=3 \
 ' "$param_file"
-	sed -i "s/\(elec_energy_tol :\).*/\1 $init_elec_energy_tol/" "$param_file"
-	sed -i '/^fine_grid_scale.*/d' "$param_file"
-	sed -i -E "s/(grid_scale)[ :]+[0-9.]+/\1 : 1.750000000000000/" "$param_file"
+	sed -i '' "s/\(elec_energy_tol :\).*/\1 $init_elec_energy_tol/" "$param_file"
+	sed -i '' '/^fine_grid_scale.*/d' "$param_file"
+	sed -i '' -E "s/(grid_scale)[ :]+[0-9.]+/\1 : 1.750000000000000/" "$param_file"
 }
 
 function setup_before_perturb {
@@ -80,14 +84,14 @@ function setup_before_perturb {
 	mkdir -p "$folder_name"
 	# copy files without '.castep' to U_x
 	echo "copy files"
-	find . -maxdepth 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$folder_name"
+	find . -d 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$folder_name"
 	local cell_file
-	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
+	cell_file=$(find ./"$folder_name" -d 1 -type f -name "*.cell")
 	# setup cell
 	cell_before "$cell_file" "$i"
 	# setup param
 	local param_file
-	param_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.param")
+	param_file=$(find ./"$folder_name" -type f -name "*.param" -d 1)
 	param_before_perturb "$param_file"
 	# run?
 	# return new folder_name
@@ -97,9 +101,9 @@ function setup_before_perturb {
 function param_after_perturb {
 	local param_file=$1
 	# remove "!" before continuation:default
-	sed -i "s/^!//" "$param_file"
+	sed -i '' "s/^!//" "$param_file"
 	# Divide elec_energy_tol by 10 to 1e-6
-	sed -i -E "s/(elec_energy_tol :).*/\1 1e-6/" "$param_file"
+	sed -i '' -E "s/(elec_energy_tol :).*/\1 1e-6/" "$param_file"
 }
 
 function cell_after_perturb {
@@ -119,15 +123,15 @@ function setup_after_perturb {
 	local new_folder_name="$folder_name""_$step"
 	local dest="$folder_name/$new_folder_name"
 	mkdir -p "$dest"
-	find ./"$folder_name" -maxdepth 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$dest"
+	find ./"$folder_name" -d 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$dest"
 	local u_value
 	u_value=$(echo "$init_u $u_i $step" | awk '{printf "%.14f0", $1+$2+$3}')
 	local param_file
-	param_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.param")
+	param_file=$(find ./"$dest" -type f -d 1 -name "*.param")
 	# setup param after perturbation
 	param_after_perturb "$param_file"
 	local cell_file
-	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
+	cell_file=$(find ./"$dest" -type f -d 1 -name "*.cell")
 	# setup cell after perturbation
 	cell_after_perturb "$cell_file"
 	# return new folder name
@@ -139,9 +143,10 @@ function start_job {
 	current_dir=$(pwd)
 	local job_dir=$1
 	local job_name
-	job_name=$(find ./"$job_dir" -maxdepth 1 -type f -name "*.cell" | awk -F / '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	job_name=$(find ./"$job_dir" -d 1 -type f -name "*.cell" | awk -F / '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	cd "$job_dir" || exit
 	# Here is the command to start calculation
+	# Use a single & to move the job to background
 	$castep_command "$job_name" &
 	cd "$current_dir" || exit
 }
@@ -151,7 +156,7 @@ function monitor_job_done {
 	# get job name by extracting filestem
 	# find under destination
 	local jobname
-	jobname=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	jobname=$(find ./"$dest" -d 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_file="$jobname.castep"
 	# Wait for generation of `.castep` file
 	until [ -f "$castep_file" ]; do
@@ -167,7 +172,7 @@ function monitor_job_done {
 		count=$(grep -c "Finalisation time" "$castep_file")
 		sleep 1
 	done
-	echo -e "\nCalculation completed!"
+	echo "Calculation completed!"
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
@@ -196,28 +201,47 @@ function read_data {
 	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result.csv
 }
 
+# 3. Main process
+
 function main {
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
-	for ((i = 0; i < $1; i += $2)); do
-		setup_before_perturb $i
-		init_folder="$setup_init_folder"
-		# run castep
-		# castep $SEED_PATH/$SEED_NAME
-		# monitor result
-		start_job "$init_folder"
-		monitor_job_done "$init_folder"
-		# echo  "Setup next perturbation step\r"
-		setup_after_perturb $i 1 "$init_folder"
-		next_folder=$setup_next_folder
-		start_job "$next_folder"
-		monitor_job_done "$next_folder"
+	for i in $(seq 0 "$2" "$1"); do
+		(
+			# .. do your stuff here
+			setup_before_perturb "$i"
+			init_folder="$setup_init_folder"
+			# run castep
+			# castep $SEED_PATH/$SEED_NAME
+			# monitor result
+			start_job "$init_folder"
+			monitor_job_done "$init_folder"
+			# echo  "Setup next perturbation step\r"
+			setup_after_perturb "$i" 1 "$init_folder"
+			next_folder=$setup_next_folder
+			start_job "$next_folder"
+			monitor_job_done "$next_folder"
+		) &
+
+		# allow to execute up to $N jobs in parallel
+		if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
+			# now there are $N jobs already running, so wait here for any job
+			# to be finished so there is a place to start next one.
+			# ! mac does not have "-n" option as gnu linux
+			wait
+		fi
+
 	done
 
+	# no more jobs to be started but wait for pending jobs
+	# (all need to be finished)
+	wait
+
+	echo "all done"
 }
 
-# Run the serial program.
-# 1st integer after `main` is the upper limit of U,
+# Run the parallel program.
+# 1st integer after `main` is the upper limit of U (U <=number)
 # 2nd integer is the increment step of U
-# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10.
+# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10, 12.
 main 12 2

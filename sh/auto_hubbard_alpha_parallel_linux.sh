@@ -1,5 +1,5 @@
 #! /bin/bash
-# Automatic hubbard_alpha increment calculation workflow
+# Automatic hubbard_U increment calculation workflow
 # !!!! Caution: substitute function `faux_castep_run` by "$castep_command"
 #
 # Please read comments in this script if you want to understand and/or
@@ -54,7 +54,7 @@ function cell_before {
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i $"s/\r$//" "$cell_file"
-	hubbard_alpha "$i"
+	hubbard_u "$i"
 }
 
 function param_before_perturb {
@@ -142,6 +142,7 @@ function start_job {
 	job_name=$(find ./"$job_dir" -maxdepth 1 -type f -name "*.cell" | awk -F / '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	cd "$job_dir" || exit
 	# Here is the command to start calculation
+	# Use a single & to move the job to background
 	$castep_command "$job_name" &
 	cd "$current_dir" || exit
 }
@@ -196,28 +197,46 @@ function read_data {
 	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result.csv
 }
 
+# Maximum parallel jobs "$N"
+N=4
 function main {
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
-	for ((i = 0; i < $1; i += $2)); do
-		setup_before_perturb $i
-		init_folder="$setup_init_folder"
-		# run castep
-		# castep $SEED_PATH/$SEED_NAME
-		# monitor result
-		start_job "$init_folder"
-		monitor_job_done "$init_folder"
-		# echo  "Setup next perturbation step\r"
-		setup_after_perturb $i 1 "$init_folder"
-		next_folder=$setup_next_folder
-		start_job "$next_folder"
-		monitor_job_done "$next_folder"
+	for i in $(seq 0 "$2" "$1"); do
+		(
+			# .. do your stuff here
+			setup_before_perturb "$i"
+			init_folder="$setup_init_folder"
+			# run castep
+			# castep $SEED_PATH/$SEED_NAME
+			# monitor result
+			start_job "$init_folder"
+			monitor_job_done "$init_folder"
+			# echo  "Setup next perturbation step\r"
+			setup_after_perturb "$i" 1 "$init_folder"
+			next_folder=$setup_next_folder
+			start_job "$next_folder"
+			monitor_job_done "$next_folder"
+		) &
+
+		# allow to execute up to $N jobs in parallel
+		if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
+			# now there are $N jobs already running, so wait here for any job
+			# to be finished so there is a place to start next one.
+			wait -n
+		fi
+
 	done
 
+	# no more jobs to be started but wait for pending jobs
+	# (all need to be finished)
+	wait
+
+	echo "all done"
 }
 
-# Run the serial program.
-# 1st integer after `main` is the upper limit of U,
+# Run the parallel program.
+# 1st integer after `main` is the upper limit of U (U <=number)
 # 2nd integer is the increment step of U
-# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10.
+# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10, 12.
 main 12 2
