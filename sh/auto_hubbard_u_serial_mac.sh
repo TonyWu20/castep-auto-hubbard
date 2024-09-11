@@ -180,19 +180,27 @@ function read_data {
 	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result.csv
 }
 
-cd "$SEED_PATH" || exit
-printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
-for ((i = 0; i < 6; i += 2)); do
-	setup_before_perturb $i
-	init_folder="$setup_init_folder"
-	# run castep
-	# castep $SEED_PATH/$SEED_NAME
-	# monitor result
-	start_job "$init_folder"
-	monitor_job_done "$init_folder"
-	# echo  "Setup next perturbation step\r"
-	setup_after_perturb $i 1 "$init_folder"
-	next_folder=$setup_next_folder
-	start_job "$next_folder"
-	monitor_job_done "$next_folder"
-done
+function main {
+	cd "$SEED_PATH" || exit
+	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
+	for ((i = 0; i < $1; i += $2)); do
+		setup_before_perturb $i
+		init_folder="$setup_init_folder"
+		# run castep
+		# castep $SEED_PATH/$SEED_NAME
+		# monitor result
+		start_job "$init_folder"
+		monitor_job_done "$init_folder"
+		# echo  "Setup next perturbation step\r"
+		setup_after_perturb $i 1 "$init_folder"
+		next_folder=$setup_next_folder
+		start_job "$next_folder"
+		monitor_job_done "$next_folder"
+	done
+}
+
+# Run the serial program.
+# 1st integer after `main` is the upper limit of U,
+# 2nd integer is the increment step of U
+# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10.
+main 12 2
