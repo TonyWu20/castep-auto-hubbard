@@ -202,7 +202,8 @@ function main {
 
 }
 
-# run the serial program. 1st nteger after `main` is the upper limit of U,
+# Run the serial program.
+# 1st integer after `main` is the upper limit of U,
 # 2nd integer is the increment step of U
-# Example: `main 12 2` runs U 0, 2, 4, 6, 8, 10
+# Example: `main 12 2` runs with Us of 0, 2, 4, 6, 8, 10.
 main 12 2
