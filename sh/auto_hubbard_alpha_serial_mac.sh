@@ -42,11 +42,13 @@ function cell_before {
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i '' $"s/\r$//" "$cell_file"
-	sed -i '' "s/d:.*/d: $u_value/g" "$cell_file"
+	# Fix U to $init_u
+	sed -i '' "s/d:.*/d: $init_u/g" "$cell_file"
 	echo "Initiate U to $u_value"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
+	# Adjust U_alpha to $u_value
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $u_value" >>"$cell_file".bak
 	mv "$cell_file".bak "$cell_file"
 }
 
