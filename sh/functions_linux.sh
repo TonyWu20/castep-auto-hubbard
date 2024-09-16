@@ -270,10 +270,8 @@ function parallel {
 	job_type_input "$5"
 	job_type=$input_job_type
 	local N=$6
-	local current_dir
-	current_dir=$(pwd)
 	local log_path
-	log_path="$current_dir"/log_"$job_type".txt
+	log_path="$SEED_PATH"/log_"$job_type".txt
 	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
