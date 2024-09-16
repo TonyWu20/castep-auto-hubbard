@@ -100,7 +100,7 @@ function setup_before_perturb {
 	mkdir -p "$folder_name"
 	# copy files without '.castep' to U_x
 	echo "copy files"
-	find . -maxdepth 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$folder_name"
+	find . -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$folder_name"
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
 	# setup cell
@@ -173,7 +173,7 @@ function start_job {
 	# standalone when command needs jobname
 	# $castep_command "$jobname" 2>&1 | tee log_"$job_type".txt
 	# cluster, only script needed
-	$castep_command 2>&1 | tee log_"$job_type".txt
+	$castep_command 2>&1 | tee -a log_"$job_type".txt
 	cd "$current_dir" || exit
 }
 
