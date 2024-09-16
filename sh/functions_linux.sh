@@ -1,7 +1,7 @@
-# castep_command_u="qsub hpc.pbs.sh"
-# castep_command_alpha="qsub hpc.pbs.sh"
-castep_command_u="faux_castep_run"
-castep_command_alpha="faux_castep_run"
+castep_command_u="qsub hpc.pbs_AU.sh"
+castep_command_alpha="qsub hpc.pbs_HU.sh"
+# castep_command_u="faux_castep_run"
+# castep_command_alpha="faux_castep_run"
 
 function job_type_input {
 	if [[ $1 == '' ]]; then
@@ -171,9 +171,9 @@ function start_job {
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
 	# standalone when command needs jobname
-	$castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
+	# $castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	# $castep_command 2>&1 | tee -a log_"$job_type".txt
+	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	cd "$current_dir" || exit
 }
 
@@ -255,8 +255,6 @@ function main {
 	done
 }
 
-# Maximum parallel jobs "$N"
-N=4
 function parallel {
 	local init_u=$1
 	local init_elec_energy_tol=$2
@@ -265,9 +263,10 @@ function parallel {
 	local job_type
 	job_type_input "$5"
 	job_type=$input_job_type
+	local N=$6
 	cd "$SEED_PATH" || exit
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_u.csv
-	for i in $(seq 0 "$2" "$1"); do
+	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
+	for i in $(seq 0 "$step" "$final_U"); do
 		(
 			# .. do your stuff here
 			setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
@@ -280,7 +279,7 @@ function parallel {
 			# echo  "Setup next perturbation step\r"
 			setup_after_perturb "$i" 1 "$init_folder"
 			next_folder=$setup_next_folder
-			start_job "$next_folder"
+			start_job "$next_folder" "$job_type"
 			monitor_job_done "$next_folder"
 		) &
 
