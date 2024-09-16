@@ -10,6 +10,7 @@ init_u=0.000000010000000
 init_elec_energy_tol=1e-5
 # !!! Please adjust this variable to the actual command to
 # start castep calculation.
+
 source "$(dirname "$0")"/functions_linux.sh
 
 if [[ $1 == '' ]]; then
