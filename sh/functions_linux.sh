@@ -10,7 +10,7 @@ function job_type_input {
 		read -r -e -p "Please input job type correctly as follows: u/U or alpha/Alpha?" job_type
 	done
 
-	echo "$job_type"
+	input_job_type="$job_type"
 }
 
 function faux_castep_run {
@@ -58,7 +58,13 @@ function cell_before {
 	local cell_file=$1
 	local init_u=$2
 	local i=$3
-	local hubbard_set=$4
+	local job_type=$4
+	local hubbard_set
+	case $job_type in
+	U | u) hubbard_set=hubbard_u ;;
+	alpha | Alpha) hubbard_set=hubbard_alpha ;;
+	*) exit ;;
+	esac
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/\r//" "$cell_file"
@@ -80,6 +86,7 @@ function setup_before_perturb {
 	local init_u=$1
 	local i=$2
 	local init_elec_energy_tol=$3
+	local job_type=$4
 	local folder_name=U_$i
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
@@ -92,7 +99,7 @@ function setup_before_perturb {
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
 	# setup cell
-	cell_before "$cell_file" "$init_u" "$i"
+	cell_before "$cell_file" "$init_u" "$i" "$job_type"
 	# setup param
 	local param_file
 	param_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.param")
@@ -216,11 +223,12 @@ function main {
 	local init_elec_energy_tol=$2
 	local step=$3
 	local final_U=$4
-	local job_type=$5
+	local job_type
+	job_type_input "$5"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
-		setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol"
+		setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
 		init_folder="$setup_init_folder"
 		# run castep
 		# castep $SEED_PATH/$SEED_NAME

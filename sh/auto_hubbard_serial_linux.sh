@@ -23,6 +23,6 @@ else
 	SEED_PATH=$1
 fi
 
-job_type=$(job_type_input "$2")
+job_type=$2
 
 main "$init_u" "$init_elec_energy_tol" 2 12 "$job_type"
