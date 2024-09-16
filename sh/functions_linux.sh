@@ -19,9 +19,9 @@ function job_type_input {
 }
 
 function faux_castep_run {
-	sleep 3
+	sleep 1
 	touch "$1.castep"
-	sleep 3
+	sleep 1
 	{
 		echo "           1           1 Total:    4.88454712510949       Mz:"
 		echo "           1           2 Total:    2.04480063601341       Mz:"
@@ -30,7 +30,7 @@ function faux_castep_run {
 		echo "           1           1 Total:    4.88417863385162       Mz:"
 		echo "           1           2 Total:    2.03022846329140       Mz:"
 	} >>"$1.castep"
-	sleep 2
+	sleep 1
 	echo "Finalisation time" >>"$1.castep"
 }
 
@@ -171,9 +171,9 @@ function start_job {
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
 	# standalone when command needs jobname
-	# $castep_command "$jobname" 2>&1 | tee log_"$job_type".txt
+	$castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	$castep_command 2>&1 | tee -a log_"$job_type".txt
+	# $castep_command 2>&1 | tee -a log_"$job_type".txt
 	cd "$current_dir" || exit
 }
 
@@ -236,6 +236,7 @@ function main {
 	local final_U=$4
 	local job_type
 	job_type_input "$5"
+	job_type=$input_job_type
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -263,6 +264,7 @@ function parallel {
 	local final_U=$4
 	local job_type
 	job_type_input "$5"
+	job_type=$input_job_type
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_u.csv
 	for i in $(seq 0 "$2" "$1"); do
