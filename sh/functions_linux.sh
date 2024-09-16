@@ -92,7 +92,7 @@ function setup_before_perturb {
 	local i=$2
 	local init_elec_energy_tol=$3
 	local job_type=$4
-	local folder_name=U_$i
+	local folder_name=U_"$i"_"$job_type"
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	# create new folder U_x
@@ -139,7 +139,7 @@ function setup_after_perturb {
 	local new_folder_name="$folder_name""_$step"
 	local dest="$folder_name/$new_folder_name"
 	mkdir -p "$dest"
-	find ./"$folder_name" -maxdepth 1 -type f -not -name "*.castep" -print0 | xargs -0 -I {} cp {} "$dest"
+	find ./"$folder_name" -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$dest"
 	local u_value
 	u_value=$(echo "$init_u $u_i $step" | awk '{printf "%.14f0", $1+$2+$3}')
 	local param_file
@@ -160,7 +160,7 @@ function start_job {
 	local job_dir=$1
 	local job_type=$2
 	local job_name
-	jobname=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	job_name=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
 	cd "$job_dir" || exit
 	case $job_type in
@@ -249,7 +249,50 @@ function main {
 		# echo  "Setup next perturbation step\r"
 		setup_after_perturb "$i" 1 "$init_folder"
 		next_folder=$setup_next_folder
-		start_job "$next_folder"
+		start_job "$next_folder" "$job_type"
 		monitor_job_done "$next_folder"
 	done
+}
+
+# Maximum parallel jobs "$N"
+N=4
+function parallel {
+	local init_u=$1
+	local init_elec_energy_tol=$2
+	local step=$3
+	local final_U=$4
+	local job_type
+	job_type_input "$5"
+	cd "$SEED_PATH" || exit
+	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_u.csv
+	for i in $(seq 0 "$2" "$1"); do
+		(
+			# .. do your stuff here
+			setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
+			init_folder="$setup_init_folder"
+			# run castep
+			# castep $SEED_PATH/$SEED_NAME
+			# monitor result
+			start_job "$init_folder" "$job_type"
+			monitor_job_done "$init_folder" "$job_type"
+			# echo  "Setup next perturbation step\r"
+			setup_after_perturb "$i" 1 "$init_folder"
+			next_folder=$setup_next_folder
+			start_job "$next_folder"
+			monitor_job_done "$next_folder"
+		) &
+
+		# allow to execute up to $N jobs in parallel
+		if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
+			# now there are $N jobs already running, so wait here for any job
+			# to be finished so there is a place to start next one.
+			wait -n
+		fi
+
+	done
+
+	# no more jobs to be started but wait for pending jobs
+	# (all need to be finished)
+	wait
+	echo "all done"
 }
