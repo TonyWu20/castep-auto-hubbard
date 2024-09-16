@@ -156,13 +156,19 @@ function start_job {
 	local job_type=$2
 	local job_name
 	jobname=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	local castep_command
 	cd "$job_dir" || exit
+	case $job_type in
+	U | u) castep_command="$castep_command_u" ;;
+	alpha | Alpha) castep_command="$castep_command_alpha" ;;
+	*) exit ;;
+	esac
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
 	# standalone when command needs jobname
-	$castep_command "$jobname" 2>&1 | tee log_"$job_type".txt
+	# $castep_command "$jobname" 2>&1 | tee log_"$job_type".txt
 	# cluster, only script needed
-	# $castep_command 2>&1 | tee log_"$job_type".txt
+	$castep_command 2>&1 | tee log_"$job_type".txt
 	cd "$current_dir" || exit
 }
 

@@ -13,7 +13,10 @@ init_elec_energy_tol=1e-5
 # Example:
 # castep_command="mpirun -np 4 castep_alphaOverU.mpi" (standalone)
 # castep_command="qsub hpc.pbs.sh" (standalone)
-castep_command="faux_castep_run"
+castep_command_u="faux_castep_run"
+castep_command_alpha="faux_castep_run"
+# castep_command_u="qsub hpc.pbs.sh"
+castep_command_alpha="qsub hpc.pbs.sh"
 
 source "$(dirname "$0")"/functions_linux.sh
 
