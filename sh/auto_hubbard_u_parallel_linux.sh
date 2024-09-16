@@ -72,7 +72,7 @@ iprint=3 \
 
 function setup_before_perturb {
 	local i=$1
-	local folder_name=U_$i
+	local folder_name=U_"$i"_u
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	# create new folder U_x
@@ -201,7 +201,7 @@ function read_data {
 N=4
 function main {
 	cd "$SEED_PATH" || exit
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result.csv
+	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_u.csv
 	for i in $(seq 0 "$2" "$1"); do
 		(
 			# .. do your stuff here
