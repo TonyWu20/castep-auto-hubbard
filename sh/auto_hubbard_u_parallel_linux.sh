@@ -60,11 +60,8 @@ function cell_before {
 function param_before_perturb {
 	local param_file=$1
 	# remove \r from Windows generated files
-	sed -i $"s/\r$//" "$param_file"
-	sed -i '/^task.*/a \ 
-!continuation : default \
-iprint=3 \
-' "$param_file"
+	sed -i "s/\r//" "$param_file"
+	sed -i '/^task.*/a !continuation : default \\n iprint=3' "$param_file"
 	sed -i "s/\(elec_energy_tol :\).*/\1 $init_elec_energy_tol/" "$param_file"
 	sed -i '/^fine_grid_scale.*/d' "$param_file"
 	sed -i -E "s/(grid_scale)[ :]+[0-9.]+/\1 : 1.750000000000000/" "$param_file"
@@ -143,7 +140,7 @@ function start_job {
 	cd "$job_dir" || exit
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
-	$castep_command "$job_name" &
+	$castep_command "$job_name" >/dev/null &
 	cd "$current_dir" || exit
 }
 
