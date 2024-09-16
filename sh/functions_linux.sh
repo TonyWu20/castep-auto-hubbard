@@ -1,3 +1,8 @@
+# castep_command_u="qsub hpc.pbs.sh"
+# castep_command_alpha="qsub hpc.pbs.sh"
+castep_command_u="faux_castep_run"
+castep_command_alpha="faux_castep_run"
+
 function job_type_input {
 	if [[ $1 == '' ]]; then
 		read -r -e -p "job type: u/alpha?" job_type

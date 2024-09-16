@@ -17,7 +17,6 @@ castep_command_u="faux_castep_run"
 castep_command_alpha="faux_castep_run"
 # castep_command_u="qsub hpc.pbs.sh"
 castep_command_alpha="qsub hpc.pbs.sh"
-
 source "$(dirname "$0")"/functions_linux.sh
 
 if [[ $1 == '' ]]; then
