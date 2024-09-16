@@ -159,6 +159,7 @@ function start_job {
 	current_dir=$(pwd)
 	local job_dir=$1
 	local job_type=$2
+	local log_path=$3
 	local job_name
 	job_name=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
@@ -173,7 +174,7 @@ function start_job {
 	# standalone when command needs jobname
 	# $castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt &
+	$castep_command 2>&1 | tee -a "$log_path"
 	cd "$current_dir" || exit
 }
 
@@ -239,7 +240,9 @@ function main {
 	job_type=$input_job_type
 	local current_dir
 	current_dir=$(pwd)
-	true >"$current_dir"/log_"$job_type".txt
+	local log_path
+	log_path="$current_dir"/log_"$job_type".txt
+	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -248,12 +251,12 @@ function main {
 		# run castep
 		# castep $SEED_PATH/$SEED_NAME
 		# monitor result
-		start_job "$init_folder" "$job_type"
+		start_job "$init_folder" "$job_type" "$log_path"
 		monitor_job_done "$init_folder" "$job_type"
 		# echo  "Setup next perturbation step\r"
 		setup_after_perturb "$i" 1 "$init_folder"
 		next_folder=$setup_next_folder
-		start_job "$next_folder" "$job_type"
+		start_job "$next_folder" "$job_type" "$log_path"
 		monitor_job_done "$next_folder"
 	done
 }
@@ -269,7 +272,9 @@ function parallel {
 	local N=$6
 	local current_dir
 	current_dir=$(pwd)
-	true >"$current_dir"/log_"$job_type".txt
+	local log_path
+	log_path="$current_dir"/log_"$job_type".txt
+	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -280,12 +285,12 @@ function parallel {
 			# run castep
 			# castep $SEED_PATH/$SEED_NAME
 			# monitor result
-			start_job "$init_folder" "$job_type"
+			start_job "$init_folder" "$job_type" "$log_path"
 			monitor_job_done "$init_folder" "$job_type"
 			# echo  "Setup next perturbation step\r"
 			setup_after_perturb "$i" 1 "$init_folder"
 			next_folder=$setup_next_folder
-			start_job "$next_folder" "$job_type"
+			start_job "$next_folder" "$job_type" "$log_path"
 			monitor_job_done "$next_folder"
 		) &
 
