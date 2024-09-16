@@ -173,7 +173,6 @@ function start_job {
 	# standalone when command needs jobname
 	# $castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	true >"$current_dir"/log_"$job_type".txt
 	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt &
 	cd "$current_dir" || exit
 }
@@ -238,6 +237,9 @@ function main {
 	local job_type
 	job_type_input "$5"
 	job_type=$input_job_type
+	local current_dir
+	current_dir=$(pwd)
+	true >"$current_dir"/log_"$job_type".txt
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -265,6 +267,9 @@ function parallel {
 	job_type_input "$5"
 	job_type=$input_job_type
 	local N=$6
+	local current_dir
+	current_dir=$(pwd)
+	true >"$current_dir"/log_"$job_type".txt
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
