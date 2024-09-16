@@ -48,7 +48,8 @@ function hubbard_u {
 }
 
 function hubbard_alpha {
-	local i=$1
+	local init_u=$1
+	local i=$2
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/d:.*/d: $init_u/g" "$cell_file"
@@ -241,7 +242,7 @@ function main {
 	local current_dir
 	current_dir=$(pwd)
 	local log_path
-	log_path="$current_dir"/log_"$job_type".txt
+	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
 	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
@@ -271,7 +272,7 @@ function parallel {
 	job_type=$input_job_type
 	local N=$6
 	local log_path
-	log_path="$SEED_PATH"/log_"$job_type".txt
+	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
 	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
