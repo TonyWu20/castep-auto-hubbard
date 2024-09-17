@@ -236,9 +236,10 @@ function read_data {
 
 function routine {
 	local init_u=$1
-	local init_elec_energy_tol=$2
-	local step=$3
-	local final_U=$4
+	local i=$2
+	local init_elec_energy_tol=$3
+	local step=$4
+	local final_U=$5
 	local job_type
 	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
 	init_folder="$setup_init_folder"
@@ -275,7 +276,7 @@ function main {
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
-		routine "$init_u" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
+		routine "$init_u" "$i" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
 	done
 }
 
@@ -295,7 +296,7 @@ function parallel {
 	for i in $(seq 0 "$step" "$final_U"); do
 		(
 			# .. do your stuff here
-			routine "$init_u" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
+			routine "$init_u" "$i" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
 		) &
 
 		# allow to execute up to $N jobs in parallel
