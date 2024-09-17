@@ -1,7 +1,5 @@
 # castep_command_u="qsub hpc.pbs_AU.sh"
 # castep_command_alpha="qsub hpc.pbs_HU.sh"
-castep_command_u="faux_castep_run"
-castep_command_alpha="faux_castep_run"
 
 function job_type_input {
 	if [[ $1 == '' ]]; then
@@ -44,6 +42,7 @@ function hubbard_u {
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
 	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
+	echo "Initiate Alpha to $init_u"
 	mv "$cell_file".bak "$cell_file"
 }
 
@@ -57,6 +56,7 @@ function hubbard_alpha {
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
 	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $u_value" >>"$cell_file".bak
+	echo "Inititate Alpha to $u_value"
 	mv "$cell_file".bak "$cell_file"
 }
 
@@ -127,24 +127,25 @@ function param_after_perturb {
 
 function cell_after_perturb {
 	local cell_file=$1
+	local perturb_step=$2
+	local perturb_increment=$3
 	local value
 	value=$(awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file" | awk 'NR==2 {print $4}')
 	local after_value
-	after_value=$(echo "$value" 0.05 | awk '{printf "%.14f0", $1+$2}')
+	after_value=$(echo "$value" "$perturb_increment" "$perturb_step" | awk '{printf "%.14f0", $1+$2*$3}')
 	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/d: .*/, a)}1' a="d: $after_value" "$cell_file" >"$cell_file".bak
+	echo "Perturbation count: $perturb_step"
+	echo "Update alpha to $after_value"
 	mv "$cell_file".bak "$cell_file"
 }
 
 function setup_after_perturb {
-	local u_i=$1
-	local step=$2
-	local folder_name=$3
-	local new_folder_name="$folder_name""_$step"
+	local perturb_step=$1
+	local folder_name=$2
+	local new_folder_name="$folder_name""_$perturb_step"
 	local dest="$folder_name/$new_folder_name"
 	mkdir -p "$dest"
 	find ./"$folder_name" -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$dest"
-	local u_value
-	u_value=$(echo "$init_u $u_i $step" | awk '{printf "%.14f0", $1+$2+$3}')
 	local param_file
 	param_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.param")
 	# setup param after perturbation
@@ -152,7 +153,7 @@ function setup_after_perturb {
 	local cell_file
 	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
 	# setup cell after perturbation
-	cell_after_perturb "$cell_file"
+	cell_after_perturb "$cell_file" "$perturb_step" "$PERTURB_INCREMENT"
 	# return new folder name
 	setup_next_folder=$dest
 }
@@ -175,9 +176,9 @@ function start_job {
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
 	# standalone when command needs jobname
-	$castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+	# $castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	# $castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	cd "$current_dir" || exit
 	monitor_job_done "$job_dir" "$job_type"
 }
@@ -240,6 +241,7 @@ function routine {
 	local init_elec_energy_tol=$3
 	local job_type=$4
 	local log_path=$5
+	local PERTURB_TIMES=$6
 	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
 	init_folder="$setup_init_folder"
 	# run castep
@@ -247,9 +249,11 @@ function routine {
 	# monitor result
 	start_job "$init_folder" "$job_type" "$log_path"
 	# echo  "Setup next perturbation step\r"
-	setup_after_perturb "$i" 1 "$init_folder"
-	next_folder=$setup_next_folder
-	start_job "$next_folder" "$job_type" "$log_path"
+	for j in $(seq 1 "$PERTURB_TIMES"); do
+		setup_after_perturb "$j" "$init_folder"
+		next_folder=$setup_next_folder
+		start_job "$next_folder" "$job_type" "$log_path"
+	done
 }
 
 function create_log {
@@ -262,40 +266,44 @@ function create_log {
 	echo log_path
 }
 
-function main {
-	local init_u=$1
-	local init_elec_energy_tol=$2
-	local step=$3
-	local final_U=$4
-	local job_type
+function setup {
+	init_u=$1
+	init_elec_energy_tol=$2
+	step=$3
+	final_U=$4
 	job_type_input "$5"
 	job_type=$input_job_type
-	local log_path
 	log_path=$(create_log "$job_type")
+	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >"$SEED_PATH"/result_"$job_type".csv
+}
+
+function setup_perturbation {
+	PERTURB_TIMES=$1
+	PERTURB_INCREMENT=$2
+	if [[ $PERTURB_INCREMENT == '' ]]; then
+		PERTURB_INCREMENT=0.05
+	fi
+}
+
+function setup_castep_command {
+	castep_command_u=$1
+	castep_command_alpha=$2
+}
+
+function serial {
 	cd "$SEED_PATH" || exit
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
-		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path"
+		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
 	done
 }
 
 function parallel {
-	local init_u=$1
-	local init_elec_energy_tol=$2
-	local step=$3
-	local final_U=$4
-	local job_type
-	job_type_input "$5"
-	job_type=$input_job_type
-	local N=$6
-	local log_path
-	log_path=$(create_log "$job_type")
+	local N=$1
 	cd "$SEED_PATH" || exit
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
 		(
 			# .. do your stuff here
-			routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path"
+			routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
 		) &
 
 		# allow to execute up to $N jobs in parallel
