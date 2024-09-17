@@ -177,11 +177,7 @@ function start_job {
 	# standalone when command needs jobname
 	$castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-<<<<<<< HEAD
 	# $castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
-=======
-	$castep_command 2>&1 | tee -a "$log_path"
->>>>>>> 8bbb2f3ca160b8574f8a2ca712d7a848e25a9026
 	cd "$current_dir" || exit
 }
 
