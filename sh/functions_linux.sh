@@ -48,7 +48,8 @@ function hubbard_u {
 }
 
 function hubbard_alpha {
-	local i=$1
+	local init_u=$1
+	local i=$2
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/d:.*/d: $init_u/g" "$cell_file"
@@ -161,6 +162,7 @@ function start_job {
 	current_dir=$(pwd)
 	local job_dir=$1
 	local job_type=$2
+	local log_path=$3
 	local job_name
 	job_name=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
@@ -175,7 +177,11 @@ function start_job {
 	# standalone when command needs jobname
 	$castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
+<<<<<<< HEAD
 	# $castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+=======
+	$castep_command 2>&1 | tee -a "$log_path"
+>>>>>>> 8bbb2f3ca160b8574f8a2ca712d7a848e25a9026
 	cd "$current_dir" || exit
 }
 
@@ -239,6 +245,11 @@ function main {
 	local job_type
 	job_type_input "$5"
 	job_type=$input_job_type
+	local current_dir
+	current_dir=$(pwd)
+	local log_path
+	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
+	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -247,7 +258,7 @@ function main {
 		# run castep
 		# castep $SEED_PATH/$SEED_NAME
 		# monitor result
-		start_job "$init_folder" "$job_type"
+		start_job "$init_folder" "$job_type" "$log_path"
 		monitor_job_done "$init_folder" "$job_type"
 		# echo  "Setup next perturbation step\r"
 		setup_after_perturb "$i" 1 "$init_folder"
@@ -266,6 +277,9 @@ function parallel {
 	job_type_input "$5"
 	job_type=$input_job_type
 	local N=$6
+	local log_path
+	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
+	true >"$log_path"
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
@@ -276,7 +290,7 @@ function parallel {
 			# run castep
 			# castep $SEED_PATH/$SEED_NAME
 			# monitor result
-			start_job "$init_folder" "$job_type"
+			start_job "$init_folder" "$job_type" "$log_path"
 			monitor_job_done "$init_folder" "$job_type"
 			# echo  "Setup next perturbation step\r"
 			setup_after_perturb "$i" 1 "$init_folder"
