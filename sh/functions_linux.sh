@@ -1,7 +1,7 @@
-castep_command_u="qsub hpc.pbs_AU.sh"
-castep_command_alpha="qsub hpc.pbs_HU.sh"
-# castep_command_u="faux_castep_run"
-# castep_command_alpha="faux_castep_run"
+# castep_command_u="qsub hpc.pbs_AU.sh"
+# castep_command_alpha="qsub hpc.pbs_HU.sh"
+castep_command_u="faux_castep_run"
+castep_command_alpha="faux_castep_run"
 
 function job_type_input {
 	if [[ $1 == '' ]]; then
@@ -119,7 +119,9 @@ function param_after_perturb {
 	# remove "!" before continuation:default
 	sed -i "s/^!//" "$param_file"
 	# Divide elec_energy_tol by 10 to 1e-6
-	sed -i -E "s/(elec_energy_tol :).*/\1 1e-6/" "$param_file"
+	local new_elec_energy_tol
+	new_elec_energy_tol=$(echo "$init_elec_energy_tol" 10 | awk '{printf "%e", $1/$2}')
+	sed -i -E "s/(elec_energy_tol :).*/\1 $new_elec_energy_tol/" "$param_file"
 }
 
 function cell_after_perturb {
@@ -171,9 +173,9 @@ function start_job {
 	# Here is the command to start calculation
 	# Use a single & to move the job to background
 	# standalone when command needs jobname
-	# $castep_command "$job_name" 2>&1 | tee "$current_dir"/log_"$job_type".txt
+	$castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	# cluster, only script needed
-	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+	# $castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	cd "$current_dir" || exit
 }
 
@@ -251,7 +253,7 @@ function main {
 		setup_after_perturb "$i" 1 "$init_folder"
 		next_folder=$setup_next_folder
 		start_job "$next_folder" "$job_type"
-		monitor_job_done "$next_folder"
+		monitor_job_done "$next_folder" "$job_type"
 	done
 }
 
@@ -280,7 +282,7 @@ function parallel {
 			setup_after_perturb "$i" 1 "$init_folder"
 			next_folder=$setup_next_folder
 			start_job "$next_folder" "$job_type"
-			monitor_job_done "$next_folder"
+			monitor_job_done "$next_folder" "$job_type"
 		) &
 
 		# allow to execute up to $N jobs in parallel
