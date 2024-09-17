@@ -179,6 +179,7 @@ function start_job {
 	# cluster, only script needed
 	# $castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 	cd "$current_dir" || exit
+	monitor_job_done "$job_dir" "$job_type"
 }
 
 function monitor_job_done {
@@ -233,6 +234,34 @@ function read_data {
 	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result_"$job_type".csv
 }
 
+function routine {
+	local init_u=$1
+	local init_elec_energy_tol=$2
+	local step=$3
+	local final_U=$4
+	local job_type
+	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
+	init_folder="$setup_init_folder"
+	# run castep
+	# castep $SEED_PATH/$SEED_NAME
+	# monitor result
+	start_job "$init_folder" "$job_type" "$log_path"
+	# echo  "Setup next perturbation step\r"
+	setup_after_perturb "$i" 1 "$init_folder"
+	next_folder=$setup_next_folder
+	start_job "$next_folder" "$job_type"
+}
+
+function create_log {
+	local job_type=$1
+	local current_dir
+	current_dir=$(pwd)
+	local log_path
+	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
+	true >"$log_path"
+	echo log_path
+}
+
 function main {
 	local init_u=$1
 	local init_elec_energy_tol=$2
@@ -241,26 +270,12 @@ function main {
 	local job_type
 	job_type_input "$5"
 	job_type=$input_job_type
-	local current_dir
-	current_dir=$(pwd)
 	local log_path
-	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
-	true >"$log_path"
+	log_path=$(create_log "$job_type")
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
-		setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
-		init_folder="$setup_init_folder"
-		# run castep
-		# castep $SEED_PATH/$SEED_NAME
-		# monitor result
-		start_job "$init_folder" "$job_type" "$log_path"
-		monitor_job_done "$init_folder" "$job_type"
-		# echo  "Setup next perturbation step\r"
-		setup_after_perturb "$i" 1 "$init_folder"
-		next_folder=$setup_next_folder
-		start_job "$next_folder" "$job_type"
-		monitor_job_done "$next_folder" "$job_type"
+		routine "$init_u" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
 	done
 }
 
@@ -274,25 +289,13 @@ function parallel {
 	job_type=$input_job_type
 	local N=$6
 	local log_path
-	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
-	true >"$log_path"
+	log_path=$(create_log "$job_type")
 	cd "$SEED_PATH" || exit
 	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >result_"$job_type".csv
 	for i in $(seq 0 "$step" "$final_U"); do
 		(
 			# .. do your stuff here
-			setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
-			init_folder="$setup_init_folder"
-			# run castep
-			# castep $SEED_PATH/$SEED_NAME
-			# monitor result
-			start_job "$init_folder" "$job_type" "$log_path"
-			monitor_job_done "$init_folder" "$job_type"
-			# echo  "Setup next perturbation step\r"
-			setup_after_perturb "$i" 1 "$init_folder"
-			next_folder=$setup_next_folder
-			start_job "$next_folder" "$job_type"
-			monitor_job_done "$next_folder" "$job_type"
+			routine "$init_u" "$init_elec_energy_tol" "$step" "$final_U" "$job_type"
 		) &
 
 		# allow to execute up to $N jobs in parallel
