@@ -321,6 +321,8 @@ function serial {
 	for i in $(seq 0 "$step" "$final_U"); do
 		read_data "$i" "$job_type"
 	done
+	echo "Result:"
+	cat result_"$job_type".csv
 }
 
 function parallel {
