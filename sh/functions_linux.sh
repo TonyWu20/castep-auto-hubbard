@@ -167,6 +167,12 @@ function start_job {
 	local job_name
 	job_name=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
+	local castep_file="$job_name.castep"
+	# Early exit if the job has been done.
+	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" == 1 ]]; then
+		echo "Current castep job has been completed! Skip now"
+		exit
+	fi
 	cd "$job_dir" || exit
 	case $job_type in
 	U | u) castep_command="$castep_command_u" ;;
