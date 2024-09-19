@@ -276,7 +276,7 @@ function setup {
 	job_type_input "$5"
 	job_type=$input_job_type
 	log_path=$(create_log "$job_type")
-	printf "Jobname, Before SCF, 1st SCF, Last SCF\n" >"$SEED_PATH"/result_"$job_type".csv
+	printf "Jobname, Channel ID, Before SCF, 1st SCF, Last SCF\n" >"$SEED_PATH"/result_"$job_type".csv
 }
 
 function setup_perturbation {
