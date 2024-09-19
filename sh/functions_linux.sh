@@ -225,24 +225,16 @@ function monitor_job_done {
 function read_data {
 	local castep_file=$finished_castep_file
 	local job_type="$1"
-	local grep_result_1
-	grep_result_1=$(grep -Ei "[[:blank:]]+1[[:blank:]]+1 Total" "$castep_file")
-	local data_1_before_scf
-	data_1_before_scf=$(echo "$grep_result_1" | awk 'NR==1 {print $4}')
-	local data_1_scf_1st
-	data_1_scf_1st=$(echo "$grep_result_1" | awk 'NR==2 {print $4}')
-	local data_1_scf_last
-	data_1_scf_last=$(echo "$grep_result_1" | tail -n 1 | awk '{print $4}')
-	local grep_result_2
-	grep_result_2=$(grep -Ei "[[:blank:]]+1[[:blank:]]+2 Total" "$castep_file")
-	local data_2_before_scf
-	data_2_before_scf=$(echo "$grep_result_2" | awk 'NR==1 {print $4}')
-	local data_2_scf_1st
-	data_2_scf_1st=$(echo "$grep_result_2" | awk 'NR==2 {print $4}')
-	local data_2_scf_last
-	data_2_scf_last=$(echo "$grep_result_2" | tail -n 1 | awk '{print $4}')
-	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_1_before_scf" "$data_1_scf_1st" "$data_1_scf_last" >>result_"$job_type".csv
-	printf "%s, %f, %f, %f\n" "$finished_job_name" "$data_2_before_scf" "$data_2_scf_1st" "$data_2_scf_last" >>result_"$job_type".csv
+	local number_of_species
+	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$castep_file" | wc -l)
+	for i in $(seq 1 "$number_of_species"); do
+		local results_1
+		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>result_"$job_type".csv
+		local results_2
+		results_2=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+2 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>result_"$job_type".csv
+	done
 }
 
 function routine {
