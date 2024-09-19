@@ -75,6 +75,8 @@ function cell_before {
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/\r//" "$cell_file"
 	"$hubbard_set" "$init_u" "$i"
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file"
+	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file"
 }
 
 function param_before_perturb {
@@ -136,6 +138,7 @@ function cell_after_perturb {
 	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/: .*/, a)}1' a=": $after_value" "$cell_file" >"$cell_file".bak
 	echo "Perturbation count: $perturb_step"
 	echo "Update alpha to $after_value"
+	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file.bak"
 	mv "$cell_file".bak "$cell_file"
 }
 
