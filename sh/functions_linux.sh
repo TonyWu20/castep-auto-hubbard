@@ -178,6 +178,7 @@ function start_job {
 	# Early exit if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
+		write_data "$job_dir" "$job_type"
 		return 1
 	else
 		cd "$job_dir" || exit
@@ -223,10 +224,10 @@ function monitor_job_done {
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
-	read_data "$dest" "$job_type"
+	write_data "$dest" "$job_type"
 }
 
-function read_data {
+function write_data {
 	local castep_file=$finished_castep_file
 	local dest=$1
 	local cell_file
@@ -234,14 +235,23 @@ function read_data {
 	local job_type="$2"
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
+	local local_result_path="$init_folder"/result_$job_type.csv
+	: >local_result_path
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>result_"$job_type".csv
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$init_folder"/result_"$job_type".csv
 		local results_2
 		results_2=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+2 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>result_"$job_type".csv
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$init_folder"/result_"$job_type".csv
 	done
+}
+
+function read_data {
+	local i=$1
+	local job_type=$2
+	local folder_name=U_"$i"_"$job_type"
+	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type".csv
 }
 
 function routine {
@@ -304,6 +314,9 @@ function serial {
 	for i in $(seq 0 "$step" "$final_U"); do
 		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
 	done
+	for i in $(seq 0 "$step" "$final_U"); do
+		read_data "$i" "$job_type"
+	done
 }
 
 function parallel {
@@ -322,6 +335,9 @@ function parallel {
 			wait -n
 		fi
 
+	done
+	for i in $(seq 0 "$step" "$final_U"); do
+		read_data "$i" "$job_type"
 	done
 
 	# no more jobs to be started but wait for pending jobs
