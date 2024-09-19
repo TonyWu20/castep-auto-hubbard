@@ -236,7 +236,7 @@ function write_data {
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
 	local local_result_path="$init_folder"/result_$job_type.csv
-	: >local_result_path
+	: >$local_result_path
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
