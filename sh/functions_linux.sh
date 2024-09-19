@@ -178,7 +178,8 @@ function start_job {
 	# Early exit if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
-		write_data "$job_dir" "$job_type"
+		cd "$job_dir" || exit
+		write_data "$castep_file" "$job_dir" "$job_type"
 		return 1
 	else
 		cd "$job_dir" || exit
@@ -224,15 +225,15 @@ function monitor_job_done {
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
-	write_data "$dest" "$job_type"
+	write_data "$finished_castep_file" "$dest" "$job_type"
 }
 
 function write_data {
-	local castep_file=$finished_castep_file
-	local dest=$1
+	local castep_file=$1
+	local dest=$2
 	local cell_file
 	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
-	local job_type="$2"
+	local job_type="$3"
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
 	local local_result_path="$init_folder"/result_$job_type.csv
