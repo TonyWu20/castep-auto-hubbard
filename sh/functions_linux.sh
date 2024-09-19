@@ -165,28 +165,29 @@ function start_job {
 	local job_type=$2
 	local log_path=$3
 	local job_name
-	job_name=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	job_name=$(find ./"$job_dir" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
 	local castep_file="$job_name.castep"
 	# Early exit if the job has been done.
-	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" == 1 ]]; then
+	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
-		exit
+		return 1
+	else
+		cd "$job_dir" || exit
+		case $job_type in
+		U | u) castep_command="$castep_command_u" ;;
+		alpha | Alpha) castep_command="$castep_command_alpha" ;;
+		*) exit ;;
+		esac
+		# Here is the command to start calculation
+		# Use a single & to move the job to background
+		# standalone when command needs jobname
+		# $castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+		# cluster, only script needed
+		$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
+		cd "$current_dir" || exit
+		monitor_job_done "$job_dir" "$job_type"
 	fi
-	cd "$job_dir" || exit
-	case $job_type in
-	U | u) castep_command="$castep_command_u" ;;
-	alpha | Alpha) castep_command="$castep_command_alpha" ;;
-	*) exit ;;
-	esac
-	# Here is the command to start calculation
-	# Use a single & to move the job to background
-	# standalone when command needs jobname
-	# $castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
-	# cluster, only script needed
-	$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
-	cd "$current_dir" || exit
-	monitor_job_done "$job_dir" "$job_type"
 }
 
 function monitor_job_done {
