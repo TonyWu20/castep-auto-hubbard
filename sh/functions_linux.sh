@@ -254,8 +254,6 @@ function read_data {
 	local job_type=$2
 	local folder_name=U_"$i"_"$job_type"
 	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type".csv
-	echo "Result:"
-	cat result_"$job_type".csv
 }
 
 function routine {
@@ -349,5 +347,7 @@ function parallel {
 	for i in $(seq 0 "$step" "$final_U"); do
 		read_data "$i" "$job_type"
 	done
+	echo "Result:"
+	cat result_"$job_type".csv
 	echo "all done"
 }
