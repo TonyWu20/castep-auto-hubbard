@@ -178,7 +178,6 @@ function start_job {
 	# Early exit if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
-		cd "$job_dir" || exit
 		write_data "$castep_file" "$job_dir" "$job_type"
 		return 1
 	else
