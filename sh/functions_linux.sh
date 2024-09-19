@@ -37,7 +37,7 @@ function hubbard_u {
 	local i=$2
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i "s/d:.*/d: $u_value/g" "$cell_file"
+	sed -i -E "s/([spdf]):.*/\1: $u_value/g" "$cell_file"
 	echo "Initiate U to $u_value"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
@@ -51,7 +51,7 @@ function hubbard_alpha {
 	local i=$2
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i "s/d:.*/d: $init_u/g" "$cell_file"
+	sed -i -E "s/([spdf]):.*/\1: $init_u/g" "$cell_file"
 	echo "Initiate U to $init_u"
 	printf "\n" >>"$cell_file"
 	cat "$cell_file" >"$cell_file".bak
