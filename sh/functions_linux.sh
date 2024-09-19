@@ -240,10 +240,10 @@ function write_data {
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$init_folder"/result_"$job_type".csv
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$local_result_path"
 		local results_2
 		results_2=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+2 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$init_folder"/result_"$job_type".csv
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$local_result_path"
 	done
 }
 
