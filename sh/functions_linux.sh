@@ -171,6 +171,7 @@ function start_job {
 	local job_dir=$1
 	local job_type=$2
 	local log_path=$3
+	local result_path=$4
 	local job_name
 	job_name=$(find ./"$job_dir" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
@@ -178,7 +179,7 @@ function start_job {
 	# Early exit if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
-		write_data "$castep_file" "$job_dir" "$job_type"
+		write_data "$castep_file" "$job_name" "$job_dir" "$job_type" "$result_path"
 		return 1
 	else
 		cd "$job_dir" || exit
@@ -194,13 +195,14 @@ function start_job {
 		# cluster, only script needed
 		$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 		cd "$current_dir" || exit
-		monitor_job_done "$job_dir" "$job_type"
+		monitor_job_done "$job_dir" "$job_type" "$result_path"
 	fi
 }
 
 function monitor_job_done {
 	local dest=$1
 	local job_type=$2
+	local local_result_path=$3
 	# get job name by extracting filestem
 	# find under destination
 	local jobname
@@ -224,19 +226,19 @@ function monitor_job_done {
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
-	write_data "$finished_castep_file" "$dest" "$job_type"
+	write_data "$finished_castep_file" "$finished_job_name" "$dest" "$job_type" "$local_result_path"
 }
 
 function write_data {
 	local castep_file=$1
-	local dest=$2
+	local finished_job_name=$2
+	local dest=$3
 	local cell_file
 	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
-	local job_type="$3"
+	local job_type="$4"
+	local local_result_path=$5
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
-	local local_result_path="$init_folder"/result_$job_type.csv
-	touch "$local_result_path"
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
@@ -252,6 +254,8 @@ function read_data {
 	local job_type=$2
 	local folder_name=U_"$i"_"$job_type"
 	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type".csv
+	echo "Result:"
+	cat result_"$job_type".csv
 }
 
 function routine {
@@ -263,15 +267,17 @@ function routine {
 	local PERTURB_TIMES=$6
 	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
 	init_folder="$setup_init_folder"
+	local local_result_path="$init_folder"/result_"$job_type".csv
+	: >"$local_result_path"
 	# run castep
 	# castep $SEED_PATH/$SEED_NAME
 	# monitor result
-	start_job "$init_folder" "$job_type" "$log_path"
+	start_job "$init_folder" "$job_type" "$log_path" "$local_result_path"
 	# echo  "Setup next perturbation step\r"
 	for j in $(seq 1 "$PERTURB_TIMES"); do
 		setup_after_perturb "$j" "$init_folder"
 		next_folder=$setup_next_folder
-		start_job "$next_folder" "$job_type" "$log_path"
+		start_job "$next_folder" "$job_type" "$log_path" "$local_result_path"
 	done
 }
 
@@ -336,12 +342,12 @@ function parallel {
 		fi
 
 	done
-	for i in $(seq 0 "$step" "$final_U"); do
-		read_data "$i" "$job_type"
-	done
 
 	# no more jobs to be started but wait for pending jobs
 	# (all need to be finished)
 	wait
+	for i in $(seq 0 "$step" "$final_U"); do
+		read_data "$i" "$job_type"
+	done
 	echo "all done"
 }
