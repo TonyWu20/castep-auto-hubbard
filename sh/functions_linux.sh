@@ -219,14 +219,17 @@ function monitor_job_done {
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
-	read_data "$job_type"
+	read_data "$dest" "$job_type"
 }
 
 function read_data {
 	local castep_file=$finished_castep_file
-	local job_type="$1"
+	local dest=$1
+	local cell_file
+	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
+	local job_type="$2"
 	local number_of_species
-	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$castep_file" | wc -l)
+	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
