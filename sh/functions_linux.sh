@@ -133,7 +133,7 @@ function cell_after_perturb {
 	value=$(awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file" | awk 'NR==2 {print $4}')
 	local after_value
 	after_value=$(echo "$value" "$perturb_increment" "$perturb_step" | awk '{printf "%.14f0", $1+$2*$3}')
-	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/d: .*/, a)}1' a="d: $after_value" "$cell_file" >"$cell_file".bak
+	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/: .*/, a)}1' a=": $after_value" "$cell_file" >"$cell_file".bak
 	echo "Perturbation count: $perturb_step"
 	echo "Update alpha to $after_value"
 	mv "$cell_file".bak "$cell_file"
