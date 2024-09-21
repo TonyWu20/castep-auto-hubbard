@@ -12,6 +12,14 @@ function job_type_input {
 		echo "Invalid job_type input: $job_type"
 		read -r -e -p "Please input job type correctly as follows: u/U or alpha/Alpha?" job_type
 	done
+	case $job_type in
+	u | U) job_type="u" ;;
+	alpha | Alpha) job_type="alpha" ;;
+	*)
+		echo "Invalid job type input; ends program"
+		exit
+		;;
+	esac
 
 	input_job_type="$job_type"
 }
@@ -237,15 +245,19 @@ function write_data {
 	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
 	local job_type="$4"
 	local local_result_path=$5
+	local instant_result
+	instant_result=result_"$job_type".csv
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
 	for i in $(seq 1 "$number_of_species"); do
 		local results_1
 		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
 		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$local_result_path"
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$instant_result"
 		local results_2
 		results_2=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+2 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
 		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$local_result_path"
+		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$instant_result"
 	done
 }
 
@@ -253,9 +265,10 @@ function read_data {
 	local i=$1
 	local job_type=$2
 	local folder_name=U_"$i"_"$job_type"
-	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type".csv
+	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type"_final.csv
 }
 
+# after cd into SEED_PATH
 function routine {
 	local init_u=$1
 	local i=$2
@@ -322,7 +335,7 @@ function serial {
 		read_data "$i" "$job_type"
 	done
 	echo "Result:"
-	cat result_"$job_type".csv
+	cat result_"$job_type"_final.csv
 }
 
 function parallel {
@@ -350,6 +363,6 @@ function parallel {
 		read_data "$i" "$job_type"
 	done
 	echo "Result:"
-	cat result_"$job_type".csv
+	cat result_"$job_type"_final.csv
 	echo "all done"
 }
