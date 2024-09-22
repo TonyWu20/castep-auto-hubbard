@@ -14,8 +14,8 @@ U_final=12
 # start castep calculation.
 castep_command_u="qsub hpc.pbs_AU.sh"
 castep_command_alpha="qsub hpc.pbs_HU.sh"
-# castep_command_u="faux_castep_run GDY_111_Fe_U"
-# castep_command_alpha="faux_castep_run GDY_111_Fe_U"
+castep_command_u="faux_castep_run GDY_111_Fe_U"
+castep_command_alpha="faux_castep_run GDY_111_Fe_U"
 
 source "$(dirname "$0")"/functions_linux.sh
 
@@ -30,11 +30,38 @@ fi
 # Will be reconfirmed for blank or invalid input
 job_type=$2
 
-# List of running modes for selection
-RUN_MODES=(serial parallel)
-
-# Third argument is running mode
+# Third argument is number of perturbations
 if [[ $3 == '' ]]; then
+	read -r -e -p "Perturb times (default to 5): " PERTURB_TIMES
+	PERTURB_TIMES=${PERTURB_TIMES:-5}
+	echo "Number of perturbation: $PERTURB_TIMES"
+else
+	PERTURB_TIMES=$3
+fi
+
+# Fourth argument is the increment of Hubbard_alpha
+if [[ $4 == '' ]]; then
+	read -r -e -p "Perturb increment (e.g. +0.05/per step): " PERTURB_INCREMENT
+	PERTURB_INCREMENT=${PERTURB_INCREMENT:-0.05}
+	echo "Increment of alpha: $PERTURB_INCREMENT"
+else
+	PERTURB_INCREMENT=$4
+fi
+
+# Fifth argument is the initial U
+if [[ $5 == '' ]]; then
+	read -r -e -p "Init U (non zero, default to 0.000000010000000): " init_u
+elif [[ $5 =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
+	init_u=$5
+else
+	echo "Input init U is not a valid float number; run by default 0.000000010000000"
+fi
+
+# List of running modes for selection
+RUN_MODES=(serial parallel read)
+
+# Sixth  argument is running mode
+if [[ $6 == '' ]]; then
 	PS3="Please choose running mode (enter number): "
 	select choice in "${RUN_MODES[@]}"; do
 		case $choice in
@@ -45,29 +72,11 @@ if [[ $3 == '' ]]; then
 		*) echo "Invalid option $choice" ;;
 		esac
 	done
-elif [[ $3 == 'serial' || $3 == 'parallel' ]]; then
-	run_mode=$3
+elif [[ $6 == 'serial' || $6 == 'parallel' || $6 == 'read' ]]; then
+	run_mode=$6
 else
-	echo "Invalid input of running mode (serial/parallel), please restart the program"
+	echo "Invalid input of running mode (serial/parallel/read), please restart the program"
 	exit
-fi
-
-# Fourth argument is number of perturbations
-if [[ $4 == '' ]]; then
-	read -r -e -p "Perturb times (default to 5): " PERTURB_TIMES
-	PERTURB_TIMES=${PERTURB_TIMES:-5}
-	echo "Number of perturbation: $PERTURB_TIMES"
-else
-	PERTURB_TIMES=$4
-fi
-
-# Fifth argument is the increment of Hubbard_alpha
-if [[ $5 == '' ]]; then
-	read -r -e -p "Perturb increment (e.g. +0.05/per step): " PERTURB_INCREMENT
-	PERTURB_INCREMENT=${PERTURB_INCREMENT:-0.05}
-	echo "Increment of alpha: $PERTURB_INCREMENT"
-else
-	PERTURB_INCREMENT=$5
 fi
 
 # PERTURB_TIMES=5
@@ -83,5 +92,6 @@ N=32
 case $run_mode in
 serial) serial ;;
 parallel) parallel $N ;;
+read) after_read ;;
 *) exit ;;
 esac

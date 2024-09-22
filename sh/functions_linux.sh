@@ -1,5 +1,6 @@
 # castep_command_u="qsub hpc.pbs_AU.sh"
 # castep_command_alpha="qsub hpc.pbs_HU.sh"
+#
 
 function job_type_input {
 	if [[ $1 == '' ]]; then
@@ -22,6 +23,33 @@ function job_type_input {
 	esac
 
 	input_job_type="$job_type"
+}
+
+function setup {
+	init_u=$1
+	init_elec_energy_tol=$2
+	step=$3
+	final_U=$4
+	job_type_input "$5"
+	job_type=$input_job_type
+	log_path=$(create_log "$job_type")
+	# create a new final datasheet every time
+	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type"_final.csv
+	# create a datasheet for instant recording
+	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type".csv
+}
+
+function setup_perturbation {
+	PERTURB_TIMES=$1
+	PERTURB_INCREMENT=$2
+	if [[ $PERTURB_INCREMENT == '' ]]; then
+		PERTURB_INCREMENT=0.05
+	fi
+}
+
+function setup_castep_command {
+	castep_command_u=$1
+	castep_command_alpha=$2
 }
 
 function faux_castep_run {
@@ -187,7 +215,7 @@ function start_job {
 	# Early exit if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
-		write_data "$castep_file" "$job_name" "$job_dir" "$job_type" "$result_path"
+		write_data_converged "$castep_file" "$job_name" "$job_dir" "$job_type" "$result_path"
 		return 1
 	else
 		cd "$job_dir" || exit
@@ -234,10 +262,22 @@ function monitor_job_done {
 	finished_castep_file="$castep_file"
 	finished_job_name="$jobname"
 	# setup after perturb
-	write_data "$finished_castep_file" "$finished_job_name" "$dest" "$job_type" "$local_result_path"
+	write_data_converged "$finished_castep_file" "$finished_job_name" "$dest" "$job_type" "$local_result_path"
 }
 
-function write_data {
+function format_data_output {
+	local castep_file=$1
+	local finished_job_name=$2
+	local species_id=$3
+	local spin=$4
+	local is_converged=$5
+	local write_path=$6
+	local result
+	result=$(grep -Ei "[[:blank:]]+${species_id}[[:blank:]]+${spin} Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
+	printf "%s, %i, %i, %s, %s\n" "$finished_job_name" "$species_id" "$spin" "$result" "$is_converged" >>"$write_path"
+}
+
+function write_data_converged {
 	local castep_file=$1
 	local finished_job_name=$2
 	local dest=$3
@@ -249,15 +289,11 @@ function write_data {
 	instant_result=result_"$job_type".csv
 	local number_of_species
 	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
-	for i in $(seq 1 "$number_of_species"); do
-		local results_1
-		results_1=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+1 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$local_result_path"
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_1" >>"$instant_result"
-		local results_2
-		results_2=$(grep -Ei "[[:blank:]]+$i[[:blank:]]+2 Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$local_result_path"
-		printf "%s, %i, %s\n" "$finished_job_name" "$i" "$results_2" >>"$instant_result"
+	for species_id in $(seq 1 "$number_of_species"); do
+		for spin in 1 2; do
+			format_data_output "$castep_file" "$finished_job_name" "$species_id" "$spin" "true" "$local_result_path"
+			format_data_output "$castep_file" "$finished_job_name" "$species_id" "$spin" "true" "$instant_result"
+		done
 	done
 }
 
@@ -265,7 +301,9 @@ function read_data {
 	local i=$1
 	local job_type=$2
 	local folder_name=U_"$i"_"$job_type"
-	cat "$folder_name"/result_"$job_type".csv >>result_"$job_type"_final.csv
+	local from_local_sheet=$3
+	local to_total_sheet=$4
+	cat "$folder_name"/"$from_local_sheet" >>"$to_total_sheet"
 }
 
 # after cd into SEED_PATH
@@ -302,37 +340,13 @@ function create_log {
 	echo log_path
 }
 
-function setup {
-	init_u=$1
-	init_elec_energy_tol=$2
-	step=$3
-	final_U=$4
-	job_type_input "$5"
-	job_type=$input_job_type
-	log_path=$(create_log "$job_type")
-	printf "Jobname, Channel ID, Before SCF, 1st SCF, Last SCF\n" >"$SEED_PATH"/result_"$job_type".csv
-}
-
-function setup_perturbation {
-	PERTURB_TIMES=$1
-	PERTURB_INCREMENT=$2
-	if [[ $PERTURB_INCREMENT == '' ]]; then
-		PERTURB_INCREMENT=0.05
-	fi
-}
-
-function setup_castep_command {
-	castep_command_u=$1
-	castep_command_alpha=$2
-}
-
 function serial {
 	cd "$SEED_PATH" || exit
 	for i in $(seq 0 "$step" "$final_U"); do
 		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
 	done
 	for i in $(seq 0 "$step" "$final_U"); do
-		read_data "$i" "$job_type"
+		read_data "$i" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
 	done
 	echo "Result:"
 	cat result_"$job_type"_final.csv
@@ -360,9 +374,75 @@ function parallel {
 	# (all need to be finished)
 	wait
 	for i in $(seq 0 "$step" "$final_U"); do
-		read_data "$i" "$job_type"
+		read_data "$i" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
 	done
 	echo "Result:"
 	cat result_"$job_type"_final.csv
 	echo "all done"
+}
+
+function grep_data_with_check {
+	local write_path=$1
+	local castep_file
+	castep_file=$(find . -maxdepth 1 -type f -name "*.castep")
+	local job_step
+	job_step=$(pwd | awk -F '/' '{print $NF}')
+	local job_name
+	job_name="$job_step"/$(echo "$castep_file" | awk -F '/' '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
+	local cell_file
+	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
+	local number_of_species
+	number_of_species=$(awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/ {if (NF>2) print}' "$cell_file" | wc -l)
+	local is_converged
+	if [[ $(grep -c "Finalisation time" "$castep_file") -eq 0 ]]; then
+		is_converged="false"
+	else
+		is_converged="true"
+	fi
+
+	for species_id in $(seq 1 "$number_of_species"); do
+		for spin in 1 2; do
+			format_data_output "$castep_file" "$job_name" "$species_id" "$spin" "$is_converged" "$write_path"
+		done
+	done
+}
+
+function after_read_in_every_U {
+	local cwd
+	cwd=$(pwd)
+	local result_path
+	result_path=$(pwd)/local_result_"$job_type"_post.csv
+	: >"$result_path"
+	grep_data_with_check "$result_path"
+	for step in $(seq 1 "$PERTURB_TIMES"); do
+		local target_dir
+		target_dir=U_"$u"_"$job_type"_"$step"
+		cd "$target_dir" || {
+			echo "Directory: $target_dir does not exist, skip"
+			continue
+		}
+		grep_data_with_check "$result_path"
+		cd "$cwd" || exit
+	done
+}
+
+function after_read {
+	cd "$SEED_PATH" || exit
+	local current_dir
+	current_dir=$(pwd)
+	local post_total_path
+	post_total_path=result_"$job_type"_post_read.csv
+	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$post_total_path"
+	for u in $(seq 0 "$step" "$final_U"); do
+		local target_dir
+		target_dir=U_"$u"_"$job_type"
+		cd "$target_dir" || {
+			echo "Directory: $target_dir does not exist, skip"
+			continue
+		}
+		after_read_in_every_U
+		cd "$current_dir" || exit
+		read_data "$u" "$job_type" local_result_"$job_type"_post.csv "$post_total_path"
+	done
+	cat "$post_total_path"
 }
