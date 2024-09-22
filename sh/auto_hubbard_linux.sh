@@ -65,7 +65,7 @@ if [[ $6 == '' ]]; then
 	PS3="Please choose running mode (enter number): "
 	select choice in "${RUN_MODES[@]}"; do
 		case $choice in
-		serial | parallel)
+		serial | parallel | read)
 			run_mode="$choice"
 			break
 			;;
