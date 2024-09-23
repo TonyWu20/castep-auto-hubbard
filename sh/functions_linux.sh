@@ -33,6 +33,9 @@ function setup {
 	job_type_input "$5"
 	job_type=$input_job_type
 	log_path=$(create_log "$job_type")
+	new_seed_path="$SEED_PATH"_"$job_type"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"
+	cp -r "$SEED_PATH" "$new_seed_path"
+	SEED_PATH=$new_seed_path
 	# create a new final datasheet every time
 	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type"_final.csv
 	# create a datasheet for instant recording
