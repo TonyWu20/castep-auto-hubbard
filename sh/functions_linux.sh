@@ -396,7 +396,6 @@ function parallel {
 			# to be finished so there is a place to start next one.
 			wait -n
 		fi
-
 	done
 
 	# no more jobs to be started but wait for pending jobs
