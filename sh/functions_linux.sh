@@ -35,7 +35,7 @@ function setup {
 }
 
 function setup_new_seed_folder {
-	new_seed_path="$SEED_PATH"_"$job_type"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_"$PERTURB_TIMES"STEPS
+	new_seed_path="$SEED_PATH"_"$job_type"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
 	cp -r "$SEED_PATH" "$new_seed_path"
 	SEED_PATH=$new_seed_path
 	log_path=$(create_log "$job_type")
