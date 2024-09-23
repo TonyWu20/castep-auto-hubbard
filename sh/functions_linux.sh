@@ -32,10 +32,13 @@ function setup {
 	final_U=$4
 	job_type_input "$5"
 	job_type=$input_job_type
-	log_path=$(create_log "$job_type")
+}
+
+function setup_new_seed_folder {
 	new_seed_path="$SEED_PATH"_"$job_type"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"
 	cp -r "$SEED_PATH" "$new_seed_path"
 	SEED_PATH=$new_seed_path
+	log_path=$(create_log "$job_type")
 	# create a new final datasheet every time
 	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type"_final.csv
 	# create a datasheet for instant recording
