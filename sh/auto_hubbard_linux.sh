@@ -85,6 +85,9 @@ serial | parallel)
 	PERTURB_TIMES=$(seq "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA" | wc -l)
 	echo "Init Δalpha=$PERTURB_INIT_ALPHA; increment=$PERTURB_INCREMENT; final Δalpha=$PERTURB_FINAL_ALPHA"
 	echo -e "Perturbation times: $PERTURB_TIMES\n"
+	new_seed_path="$SEED_PATH"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"
+	cp -r "$SEED_PATH" "$new_seed_path"
+	SEED_PATH=$new_seed_path
 	setup "$init_u" "$init_elec_energy_tol" "$U_increment" "$U_final" "$job_type"
 	setup_perturbation "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	setup_castep_command "$castep_command_u" "$castep_command_alpha"
