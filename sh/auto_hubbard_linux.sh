@@ -58,7 +58,7 @@ if [[ $4 == '' ]]; then
 	read -r -e -p "Initial input U (default to 0): " init_input_u
 	init_input_U=${init_input_u:-0}
 elif [[ $4 =~ ^[0-9]+$ ]]; then
-	init_U=$4
+	init_input_U=$4
 else
 	echo "Input init U is not a valid integer; run by default 0"
 fi
@@ -113,7 +113,7 @@ serial | parallel)
 	PERTURB_TIMES=$(seq "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA" | wc -l)
 	echo "Init Δalpha=$PERTURB_INIT_ALPHA; increment=$PERTURB_INCREMENT; final Δalpha=$PERTURB_FINAL_ALPHA"
 	echo -e "Perturbation times: $PERTURB_TIMES\n"
-	setup "$init_hubbard_u" "$init_elec_energy_tol" "$init_U" "$U_increment" "$final_U" "$job_type"
+	setup "$init_hubbard_u" "$init_elec_energy_tol" "$init_input_U" "$U_increment" "$final_U" "$job_type"
 	setup_new_seed_folder
 	setup_perturbation "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	setup_castep_command "$castep_command_u" "$castep_command_alpha"
