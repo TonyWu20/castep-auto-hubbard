@@ -462,7 +462,7 @@ function after_read {
 	local post_total_path
 	post_total_path=result_"$job_type"_post_read.csv
 	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$post_total_path"
-	for u in $(seq "$init_hubbard_u" "$u_step" "$final_U"); do
+	for u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		local target_dir
 		target_dir=U_"$u"_"$job_type"
 		cd "$target_dir" || {
