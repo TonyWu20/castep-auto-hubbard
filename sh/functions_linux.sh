@@ -40,11 +40,12 @@ function setup {
 }
 
 function setup_perturbation {
-	PERTURB_TIMES=$1
+	PERTURB_INIT_ALPHA=$1
 	PERTURB_INCREMENT=$2
 	if [[ $PERTURB_INCREMENT == '' ]]; then
 		PERTURB_INCREMENT=0.05
 	fi
+	PERTURB_FINAL_ALPHA=$3
 }
 
 function setup_castep_command {
@@ -66,6 +67,39 @@ function faux_castep_run {
 	} >>"$1.castep"
 	sleep 1
 	echo "Finalisation time" >>"$1.castep"
+}
+
+function hubbard_before {
+	local init_u=$1
+	local i=$2
+	local job_type=$3
+	local U_value
+	local alpha_value
+	local i_u_value
+	i_u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
+	# Replace original u settings
+	case $job_type in
+	u)
+		U_value=$i_u_value
+		alpha_value=$init_u
+		;;
+	alpha)
+		U_value=$init_u
+		alpha_value=$i_u_value
+		;;
+	*)
+		echo "invalid job_type input: $job_type, exit"
+		exit
+		;;
+	esac
+	# Replace current values in HUBBARD_U with $U_value
+	sed -i -E "s/([spdf]):.*/\1: $U_value/g" "$cell_file"
+	echo "Initiate U to $U_value"
+	printf "\n" >>"$cell_file"
+	cat "$cell_file" >"$cell_file".bak
+	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $alpha_value" >>"$cell_file".bak
+	echo "Initiate Alpha to $alpha_value"
+	mv "$cell_file".bak "$cell_file"
 }
 
 function hubbard_u {
@@ -101,16 +135,10 @@ function cell_before {
 	local init_u=$2
 	local i=$3
 	local job_type=$4
-	local hubbard_set
-	case $job_type in
-	U | u) hubbard_set=hubbard_u ;;
-	alpha | Alpha) hubbard_set=hubbard_alpha ;;
-	*) exit ;;
-	esac
 	local u_value
 	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/\r//" "$cell_file"
-	"$hubbard_set" "$init_u" "$i"
+	hubbard_before "$init_u" "$i" "$job_type"
 	echo -e "---------------------------------------------------------------------\nFor $cell_file:"
 	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file"
 	echo -e "\n"
