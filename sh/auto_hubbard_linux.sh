@@ -102,6 +102,7 @@ read)
 	else
 		PERTURB_TIMES=$4
 	fi
+	setup "$init_u" "$init_elec_energy_tol" "$U_increment" "$U_final" "$job_type"
 	after_read
 	;;
 *) exit ;;
