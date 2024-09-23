@@ -41,11 +41,17 @@ function setup {
 
 function setup_perturbation {
 	PERTURB_INIT_ALPHA=$1
+	if [[ $PERTURB_INIT_ALPHA == '' ]]; then
+		PERTURB_INIT_ALPHA=0.05
+	fi
 	PERTURB_INCREMENT=$2
 	if [[ $PERTURB_INCREMENT == '' ]]; then
 		PERTURB_INCREMENT=0.05
 	fi
 	PERTURB_FINAL_ALPHA=$3
+	if [[ $PERTURB_FINAL_ALPHA == '' ]]; then
+		PERTURB_FINAL_ALPHA=0.25
+	fi
 }
 
 function setup_castep_command {
@@ -102,34 +108,6 @@ function hubbard_before {
 	mv "$cell_file".bak "$cell_file"
 }
 
-function hubbard_u {
-	local init_u=$1
-	local i=$2
-	local u_value
-	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i -E "s/([spdf]):.*/\1: $u_value/g" "$cell_file"
-	echo "Initiate U to $u_value"
-	printf "\n" >>"$cell_file"
-	cat "$cell_file" >"$cell_file".bak
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $init_u" >>"$cell_file".bak
-	echo "Initiate Alpha to $init_u"
-	mv "$cell_file".bak "$cell_file"
-}
-
-function hubbard_alpha {
-	local init_u=$1
-	local i=$2
-	local u_value
-	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
-	sed -i -E "s/([spdf]):.*/\1: $init_u/g" "$cell_file"
-	echo "Initiate U to $init_u"
-	printf "\n" >>"$cell_file"
-	cat "$cell_file" >"$cell_file".bak
-	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file" | awk '{sub(/:.*/, u_value)gsub(/_U/, "_ALPHA")}1' u_value=": $u_value" >>"$cell_file".bak
-	echo "Inititate Alpha to $u_value"
-	mv "$cell_file".bak "$cell_file"
-}
-
 function cell_before {
 	local cell_file=$1
 	local init_u=$2
@@ -163,8 +141,6 @@ function setup_before_perturb {
 	local init_elec_energy_tol=$3
 	local job_type=$4
 	local folder_name=U_"$i"_"$job_type"
-	local u_value
-	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
 	# create new folder U_x
 	echo "create $folder_name"
 	mkdir -p "$folder_name"
@@ -179,7 +155,6 @@ function setup_before_perturb {
 	local param_file
 	param_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.param")
 	param_before_perturb "$param_file" "$init_elec_energy_tol"
-	# run?
 	# return new folder_name
 	setup_init_folder="$folder_name"
 }
@@ -194,15 +169,24 @@ function param_after_perturb {
 	sed -i -E "s/(elec_energy_tol :).*/\1 $new_elec_energy_tol/" "$param_file"
 }
 
+function hubbard_alpha_after_perturb {
+	# cell file is the before perturb one
+	local cell_file=$1
+	local after_value=$2
+	# read init alpha
+	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/: .*/, a)}1' a=": $after_value" "$cell_file" >"$cell_file".bak
+}
+
 function cell_after_perturb {
 	local cell_file=$1
-	local perturb_step=$2
-	local perturb_increment=$3
-	local value
-	value=$(awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file" | awk 'NR==2 {print $4}')
+	local reference_cell=$2
+	local perturb_step=$3
+	local update_alpha_value=$4
+	local ref_value
+	ref_value=$(awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$reference_cell" | awk 'NR==2 {print $4}')
 	local after_value
-	after_value=$(echo "$value" "$perturb_increment" "$perturb_step" | awk '{printf "%.14f0", $1+$2*$3}')
-	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/ {sub(/: .*/, a)}1' a=": $after_value" "$cell_file" >"$cell_file".bak
+	after_value=$(echo "$ref_value" "$update_alpha_value" | awk '{printf "%.14f0", $1+$2}')
+	hubbard_alpha_after_perturb "$cell_file" "$after_value"
 	echo "---------------------------------------------------------------------"
 	echo -e "$cell_file\nPerturbation count: $perturb_step\nUpdate alpha to $after_value"
 	awk '/%BLOCK HUBBARD_ALPHA/,/%ENDBLOCK HUBBARD_ALPHA/' "$cell_file.bak"
@@ -212,11 +196,14 @@ function cell_after_perturb {
 
 function setup_after_perturb {
 	local perturb_step=$1
-	local folder_name=$2
+	local update_alpha_value=$2
+	local folder_name=$3
 	local new_folder_name="$folder_name""_$perturb_step"
 	local dest="$folder_name/$new_folder_name"
 	mkdir -p "$dest"
 	find ./"$folder_name" -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$dest"
+	local reference_cell
+	reference_cell=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
 	local param_file
 	param_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.param")
 	# setup param after perturbation
@@ -224,7 +211,7 @@ function setup_after_perturb {
 	local cell_file
 	cell_file=$(find ./"$dest" -maxdepth 1 -type f -name "*.cell")
 	# setup cell after perturbation
-	cell_after_perturb "$cell_file" "$perturb_step" "$PERTURB_INCREMENT"
+	cell_after_perturb "$cell_file" "$reference_cell" "$perturb_step" "$update_alpha_value"
 	# return new folder name
 	setup_next_folder=$dest
 }
@@ -341,7 +328,9 @@ function routine {
 	local init_elec_energy_tol=$3
 	local job_type=$4
 	local log_path=$5
-	local PERTURB_TIMES=$6
+	local perturb_init_alpha=$6
+	local perturb_increment=$7
+	local perturb_final_alpha=$8
 	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
 	init_folder="$setup_init_folder"
 	local local_result_path="$init_folder"/result_"$job_type".csv
@@ -351,11 +340,23 @@ function routine {
 	# monitor result
 	start_job "$init_folder" "$job_type" "$log_path" "$local_result_path"
 	# echo  "Setup next perturbation step\r"
-	for j in $(seq 1 "$PERTURB_TIMES"); do
-		setup_after_perturb "$j" "$init_folder"
+	local perturb_alpha_values
+	perturb_alpha_values=$(seq "$perturb_init_alpha" "$perturb_increment" "$perturb_final_alpha" | awk '{printf "%.14f0 ", $1}')
+	local step
+	step=0
+	for alpha_add in $perturb_alpha_values; do
+		step=$((step + 1))
+		setup_after_perturb "$step" "$alpha_add" "$init_folder"
 		next_folder=$setup_next_folder
 		start_job "$next_folder" "$job_type" "$log_path" "$local_result_path"
 	done
+
+	# for j in $(seq 1 "$PERTURB_TIMES"); do
+
+	# 	setup_after_perturb "$j" "$init_folder"
+	# 	next_folder=$setup_next_folder
+	# 	start_job "$next_folder" "$job_type" "$log_path" "$local_result_path"
+	# done
 }
 
 function create_log {
@@ -371,7 +372,7 @@ function create_log {
 function serial {
 	cd "$SEED_PATH" || exit
 	for i in $(seq 0 "$step" "$final_U"); do
-		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
+		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	done
 	for i in $(seq 0 "$step" "$final_U"); do
 		read_data "$i" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
@@ -386,7 +387,7 @@ function parallel {
 	for i in $(seq 0 "$step" "$final_U"); do
 		(
 			# .. do your stuff here
-			routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_TIMES"
+			routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 		) &
 
 		# allow to execute up to $N jobs in parallel
