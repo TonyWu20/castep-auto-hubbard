@@ -26,16 +26,17 @@ function job_type_input {
 }
 
 function setup {
-	init_u=$1
+	init_hubbard_u=$1
 	init_elec_energy_tol=$2
-	step=$3
-	final_U=$4
-	job_type_input "$5"
+	init_input_u=$3
+	u_step=$4
+	final_U=$5
+	job_type_input "$6"
 	job_type=$input_job_type
 }
 
 function setup_new_seed_folder {
-	new_seed_path="$SEED_PATH"_"$job_type"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
+	new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
 	cp -r "$SEED_PATH" "$new_seed_path"
 	SEED_PATH=$new_seed_path
 	log_path=$(create_log "$job_type")
@@ -82,21 +83,21 @@ function faux_castep_run {
 }
 
 function hubbard_before {
-	local init_u=$1
+	local init_hubbard_u=$1
 	local i=$2
 	local job_type=$3
 	local U_value
 	local alpha_value
 	local i_u_value
-	i_u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
+	i_u_value=$(echo "$init_hubbard_u $i" | awk '{printf "%.14f0", $1+$2}')
 	# Replace original u settings
 	case $job_type in
 	u)
 		U_value=$i_u_value
-		alpha_value=$init_u
+		alpha_value=$init_hubbard_u
 		;;
 	alpha)
-		U_value=$init_u
+		U_value=$init_hubbard_u
 		alpha_value=$i_u_value
 		;;
 	*)
@@ -116,13 +117,13 @@ function hubbard_before {
 
 function cell_before {
 	local cell_file=$1
-	local init_u=$2
+	local init_hubbard_u=$2
 	local i=$3
 	local job_type=$4
 	local u_value
-	u_value=$(echo "$init_u $i" | awk '{printf "%.14f0", $1+$2}')
+	u_value=$(echo "$init_hubbard_u $i" | awk '{printf "%.14f0", $1+$2}')
 	sed -i "s/\r//" "$cell_file"
-	hubbard_before "$init_u" "$i" "$job_type"
+	hubbard_before "$init_hubbard_u" "$i" "$job_type"
 	echo -e "---------------------------------------------------------------------\nFor $cell_file:"
 	awk '/%BLOCK HUBBARD_U/,/%ENDBLOCK HUBBARD_U/' "$cell_file"
 	echo -e "\n"
@@ -142,7 +143,7 @@ function param_before_perturb {
 }
 
 function setup_before_perturb {
-	local init_u=$1
+	local init_hubbard_u=$1
 	local i=$2
 	local init_elec_energy_tol=$3
 	local job_type=$4
@@ -156,7 +157,7 @@ function setup_before_perturb {
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
 	# setup cell
-	cell_before "$cell_file" "$init_u" "$i" "$job_type"
+	cell_before "$cell_file" "$init_hubbard_u" "$i" "$job_type"
 	# setup param
 	local param_file
 	param_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.param")
@@ -329,15 +330,15 @@ function read_data {
 
 # after cd into SEED_PATH
 function routine {
-	local init_u=$1
-	local i=$2
+	local init_hubbard_u=$1
+	local current_input_U=$2
 	local init_elec_energy_tol=$3
 	local job_type=$4
 	local log_path=$5
 	local perturb_init_alpha=$6
 	local perturb_increment=$7
 	local perturb_final_alpha=$8
-	setup_before_perturb "$init_u" "$i" "$init_elec_energy_tol" "$job_type"
+	setup_before_perturb "$init_hubbard_u" "$current_input_U" "$init_elec_energy_tol" "$job_type"
 	init_folder="$setup_init_folder"
 	local local_result_path="$init_folder"/result_"$job_type".csv
 	: >"$local_result_path"
@@ -356,13 +357,6 @@ function routine {
 		next_folder=$setup_next_folder
 		start_job "$next_folder" "$job_type" "$log_path" "$local_result_path"
 	done
-
-	# for j in $(seq 1 "$PERTURB_TIMES"); do
-
-	# 	setup_after_perturb "$j" "$init_folder"
-	# 	next_folder=$setup_next_folder
-	# 	start_job "$next_folder" "$job_type" "$log_path" "$local_result_path"
-	# done
 }
 
 function create_log {
@@ -377,11 +371,11 @@ function create_log {
 
 function serial {
 	cd "$SEED_PATH" || exit
-	for i in $(seq 0 "$step" "$final_U"); do
-		routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
+	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
+		routine "$init_hubbard_u" "$curr_u" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	done
-	for i in $(seq 0 "$step" "$final_U"); do
-		read_data "$i" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
+	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
+		read_data "$curr_u" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
 	done
 	echo "Result:"
 	cat result_"$job_type"_final.csv
@@ -390,10 +384,10 @@ function serial {
 function parallel {
 	local N=$1
 	cd "$SEED_PATH" || exit
-	for i in $(seq 0 "$step" "$final_U"); do
+	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		(
 			# .. do your stuff here
-			routine "$init_u" "$i" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
+			routine "$init_hubbard_u" "$curr_u" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 		) &
 
 		# allow to execute up to $N jobs in parallel
@@ -408,8 +402,8 @@ function parallel {
 	# no more jobs to be started but wait for pending jobs
 	# (all need to be finished)
 	wait
-	for i in $(seq 0 "$step" "$final_U"); do
-		read_data "$i" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
+	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
+		read_data "$curr_u" "$job_type" result_"$job_type".csv result_"$job_type"_final.csv
 	done
 	echo "Result:"
 	cat result_"$job_type"_final.csv
@@ -468,7 +462,7 @@ function after_read {
 	local post_total_path
 	post_total_path=result_"$job_type"_post_read.csv
 	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$post_total_path"
-	for u in $(seq 0 "$step" "$final_U"); do
+	for u in $(seq "$init_hubbard_u" "$u_step" "$final_U"); do
 		local target_dir
 		target_dir=U_"$u"_"$job_type"
 		cd "$target_dir" || {

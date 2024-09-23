@@ -6,10 +6,8 @@
 # modify the necessary parts for actual needs.
 
 # 1. Setup before
-init_u=0.000000010000000
+init_hubbard_u=0.000000010000000
 init_elec_energy_tol=1e-5
-U_increment=2
-U_final=12
 # !!! Please adjust this variable to the actual command to
 # start castep calculation.
 castep_command_u="qsub hpc.pbs_AU.sh"
@@ -52,33 +50,62 @@ else
 	exit
 fi
 
+init_input_U=0
+U_increment=2
+final_U=12
+# set init input U, U step, final U
+if [[ $4 == '' ]]; then
+	read -r -e -p "Initial input U (default to 0): " init_input_u
+	init_input_U=${init_input_u:-0}
+elif [[ $4 =~ ^[0-9]+$ ]]; then
+	init_U=$4
+else
+	echo "Input init U is not a valid integer; run by default 0"
+fi
+if [[ $5 == '' ]]; then
+	read -r -e -p "Input U increment step (default to 2): " step_u
+	U_increment=${step_u:-2}
+elif [[ $5 =~ ^[0-9]+$ ]]; then
+	U_increment=$5
+else
+	echo "Input U increment step is not a valid integer; run by default 2"
+fi
+if [[ $6 == '' ]]; then
+	read -r -e -p "Final input U (default to 12): " final_u
+	final_U=${final_u:-12}
+elif [[ $6 =~ ^[0-9]+$ ]]; then
+	final_U=$6
+else
+	echo "Input final U is not a valid integer; run by default 12"
+fi
+
 case $run_mode in
 serial | parallel)
-	# Fourth argument is the initial alpha value shift in perturbation
-	if [[ $4 == '' ]]; then
+	#  the initial alpha value shift in perturbation
+	if [[ $7 == '' ]]; then
 		read -r -e -p "Perturb initial Δalpha (default to 0.05): " init_alpha
 		PERTURB_INIT_ALPHA=${init_alpha:-0.05}
-	elif [[ $4 =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
-		PERTURB_INIT_ALPHA=$4
+	elif [[ $7 =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
+		PERTURB_INIT_ALPHA=$7
 	else
 		echo "Input init Δalpha is not a valid float number; run by default 0.05"
 	fi
 
 	# Fifth argument is the increment of Hubbard_alpha
-	if [[ $5 == '' ]]; then
+	if [[ $8 == '' ]]; then
 		read -r -e -p "Perturb increment (e.g. +0.05/per step): " increment
 		PERTURB_INCREMENT=${increment:-0.05}
 		echo "Increment of alpha: $PERTURB_INCREMENT"
 	else
-		PERTURB_INCREMENT=$5
+		PERTURB_INCREMENT=$8
 	fi
 
 	# Fifth argument is the initial U
-	if [[ $6 == '' ]]; then
+	if [[ $9 == '' ]]; then
 		read -r -e -p "Perturb final Δalpha (default to 0.25): " final_alpha
 		PERTURB_FINAL_ALPHA=${final_alpha:-0.25}
-	elif [[ $6 =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
-		PERTURB_FINAL_ALPHA=$6
+	elif [[ $9 =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then
+		PERTURB_FINAL_ALPHA=$9
 	else
 		echo "Input final Δalpha is not a valid float number; run by default 0.25"
 	fi
@@ -86,7 +113,7 @@ serial | parallel)
 	PERTURB_TIMES=$(seq "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA" | wc -l)
 	echo "Init Δalpha=$PERTURB_INIT_ALPHA; increment=$PERTURB_INCREMENT; final Δalpha=$PERTURB_FINAL_ALPHA"
 	echo -e "Perturbation times: $PERTURB_TIMES\n"
-	setup "$init_u" "$init_elec_energy_tol" "$U_increment" "$U_final" "$job_type"
+	setup "$init_hubbard_u" "$init_elec_energy_tol" "$init_U" "$U_increment" "$final_U" "$job_type"
 	setup_new_seed_folder
 	setup_perturbation "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	setup_castep_command "$castep_command_u" "$castep_command_alpha"
@@ -99,12 +126,12 @@ serial | parallel)
 	esac
 	;;
 read)
-	if [[ $4 == '' ]]; then
+	if [[ $7 == '' ]]; then
 		read -r -e -p "How many times of perturbation did you set? " PERTURB_TIMES
 	else
-		PERTURB_TIMES=$4
+		PERTURB_TIMES=$7
 	fi
-	setup "$init_u" "$init_elec_energy_tol" "$U_increment" "$U_final" "$job_type"
+	setup "$init_U" "$init_elec_energy_tol" "$U_increment" "$final_U" "$job_type"
 	after_read
 	;;
 *) exit ;;
