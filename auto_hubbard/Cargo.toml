@@ -1,0 +1,8 @@
+[package]
+name = "auto_hubbard"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "4.5.18"
+regex = "1.10.6"
