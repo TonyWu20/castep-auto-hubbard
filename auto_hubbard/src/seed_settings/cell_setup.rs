@@ -19,17 +19,16 @@ pub fn hubbard_before<P: AsRef<Path>>(
         JobType::Alpha => (init_hubbard_u, i_u_value),
     };
     let cell_content = read_to_string(cell_file.as_ref())?;
-    let replace_crlf = Regex::new(r"\r\n").unwrap();
-    let lf_only = replace_crlf.replace_all(&cell_content, "\n").to_string();
+    let cell_content = cell_content.replace("\r\n", "\n");
     let replace_curr_u_regex = Regex::new(r"([spdf]):.*").unwrap();
     let curr_u_replaced = replace_curr_u_regex
-        .replace_all(&lf_only, |caps: &Captures| {
+        .replace_all(&cell_content, |caps: &Captures| {
             format!("{}: {:.15}", &caps[1], u_value)
         })
         .to_string();
     // (?ms) sets flags m and s, which enable the multiline 19 and
     // dot_matches_new_line 10 modes, respectively.
-    let hubbard_u_re = Regex::new(r"(?ms)\%BLOCK HUBBARD_U\n(.+?)%ENDBLOCK HUBBARD_U").unwrap();
+    let hubbard_u_re = Regex::new(r"(?ms)\%BLOCK HUBBARD_U\s+(.+?)%ENDBLOCK HUBBARD_U").unwrap();
     let Some(caps) = hubbard_u_re.captures(&curr_u_replaced) else {
         eprintln!("No match");
         return Ok(());
