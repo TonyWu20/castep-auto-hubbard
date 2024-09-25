@@ -1,4 +1,7 @@
-use std::{fs::read_to_string, path::Path};
+use std::{
+    fs::{read_to_string, write},
+    path::Path,
+};
 
 use regex::{Captures, Regex};
 
@@ -37,9 +40,21 @@ pub fn hubbard_before<P: AsRef<Path>>(
         .unwrap()
         .replace_all(&hubbard_alpha, format!(": {:.15}", alpha_value))
         .to_string();
-    let new_cell = [curr_u_replaced, hubbard_alpha_value].join("\n");
-    println!("{new_cell}");
-    Ok(())
+    let new_cell_context = [curr_u_replaced, hubbard_alpha_value].join("\n");
+    let new_cell_file = cell_file.as_ref().with_extension("bak");
+    write(&new_cell_file, new_cell_context)?;
+    #[cfg(debug_assertions)]
+    {
+        println!(
+            "New cell content has been written to {}",
+            new_cell_file.display()
+        );
+        Ok(())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        rename(new_cell_file, cell_file.as_ref())
+    }
 }
 
 #[cfg(test)]
@@ -51,7 +66,10 @@ mod test {
     #[test]
     fn hubbard_before() {
         let cwd = env!("CARGO_MANIFEST_DIR");
-        let cell_path = Path::new(cwd).join("../sh/test/GDY_111_Fe_U.cell");
+        let cell_path = Path::new(cwd)
+            .parent()
+            .unwrap()
+            .join("sh/test/GDY_111_Fe_U.cell");
         super::hubbard_before(0.000000010000000, 2, JobType::U, &cell_path).unwrap();
         super::hubbard_before(0.000000010000000, 2, JobType::Alpha, &cell_path).unwrap();
     }
