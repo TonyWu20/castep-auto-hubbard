@@ -1,4 +1,6 @@
 use std::fmt::Display;
+use std::io;
+use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
@@ -94,7 +96,7 @@ impl ReadArgs {
         }
     }
     pub fn invoke(&self) {
-        Command::new("./auto_hubbard_linux.sh")
+        let output = Command::new("./auto_hubbard_linux.sh")
             .arg(&self.result_path)
             .arg(self.jobtype.unwrap().to_string())
             .arg("read")
@@ -104,6 +106,8 @@ impl ReadArgs {
             .arg(format!("{}", &self.perturb_times.unwrap()))
             .output()
             .expect("Failed to start auto_hubbard_linux.sh in read mode");
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
     }
 }
 
