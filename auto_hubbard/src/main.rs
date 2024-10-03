@@ -1,7 +1,7 @@
 use std::process::exit;
 
 use arguments::Cli;
-use clap::{Command, Parser};
+use clap::Parser;
 
 mod arguments;
 mod errors;
@@ -26,6 +26,6 @@ fn main() {
             }
             args.invoke()
         }
-        arguments::JobCommands::Calc(args) => todo!(),
+        arguments::JobCommands::Calc(_args) => todo!(),
     }
 }
