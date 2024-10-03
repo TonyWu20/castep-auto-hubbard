@@ -30,7 +30,7 @@ pub enum JobCommands {
     Calc(CalcArgs),
 }
 
-#[derive(Debug, Args, Clone)]
+#[derive(Debug, Args, Clone, Default)]
 pub struct ReadArgs {
     pub(crate) result_path: String,
     #[arg(short, long)]
@@ -51,6 +51,20 @@ pub struct ReadArgs {
     pub(crate) perturb_times: Option<i64>,
 }
 
+impl Display for ReadArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl FromStr for ReadArgs {
+    type Err = ReadArgsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        ReadArgs::new_with_folder_name(s)
+    }
+}
+
 #[derive(Debug)]
 pub struct ReadArgsError;
 
@@ -63,6 +77,16 @@ impl Display for ReadArgsError {
 impl std::error::Error for ReadArgsError {}
 
 impl ReadArgs {
+    pub fn new_with_folder_name(folder_name: &str) -> Result<Self, ReadArgsError> {
+        let mut new_args = Self {
+            result_path: folder_name.to_string(),
+            ..Self::default()
+        };
+        match new_args.set_from_folder_name() {
+            Ok(_) => Ok(new_args),
+            Err(e) => Err(e),
+        }
+    }
     pub fn set_from_folder_name(&mut self) -> Result<(), ReadArgsError> {
         let result_path = Path::new(&self.result_path);
         let stem = result_path

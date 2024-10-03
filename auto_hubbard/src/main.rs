@@ -2,6 +2,13 @@ use std::process::exit;
 
 use arguments::Cli;
 use clap::Parser;
+use inquire::{
+    required,
+    validator::{ErrorMessage, Validation},
+    CustomType,
+};
+
+use crate::arguments::ReadArgs;
 
 mod arguments;
 mod errors;
@@ -22,7 +29,9 @@ fn main() {
             let set = args.set_from_folder_name();
             if let Err(e) = set {
                 println!("{e}");
-                exit(0)
+                args = CustomType::<ReadArgs>::new("Please enter the name of the result folder (e.g.: XXX_[jobtype]_[init_input_u]_[step_u]_[final_u]_[perturb_init]_[perturb_step]_[perturb_final]_STEPS_[perturb_times])")
+                    .prompt().unwrap();
+                args.invoke()
             }
             args.invoke()
         }
