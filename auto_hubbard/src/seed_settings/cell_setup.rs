@@ -1,5 +1,5 @@
 use std::{
-    fs::{read_to_string, write},
+    fs::{read_to_string, rename, write},
     path::Path,
 };
 
