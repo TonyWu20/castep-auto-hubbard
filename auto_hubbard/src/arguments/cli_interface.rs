@@ -28,6 +28,7 @@ impl Cli {
 }
 
 #[derive(Subcommand)]
+#[command(version, about)]
 pub enum JobCommands {
     /// Read from existing result folder
     Read(ReadArgs),
@@ -36,23 +37,25 @@ pub enum JobCommands {
 }
 
 #[derive(Debug, Args, Clone, Default)]
+#[command(version, about)]
 pub struct ReadArgs {
+    /// Path to result folder, e.g.: XXX_[jobtype]_[init_input_u]_[step_u]_[final_u]_[perturb_init]_[perturb_step]_[perturb_final]_STEPS_[perturb_times]
     pub(crate) result_path: String,
     #[arg(short, long)]
+    /// Interpreted from the folder name by default.
     pub(crate) jobtype: Option<JobType>,
     #[arg(long)]
+    /// Interpreted from the folder name by default.
     pub(crate) init_input_u: Option<f64>,
     #[arg(long)]
+    /// Interpreted from the folder name by default.
     pub(crate) step_u: Option<f64>,
     #[arg(long)]
+    /// Interpreted from the folder name by default.
     pub(crate) final_u: Option<f64>,
     #[arg(long)]
-    pub(crate) perturb_init: Option<f64>,
-    #[arg(long)]
-    pub(crate) perturb_step: Option<f64>,
-    #[arg(long)]
-    pub(crate) perturb_final: Option<f64>,
-    #[arg(long)]
+    /// Interpreted from the folder name by default.
+    /// Decide how many rounds of perturbations to be read
     pub(crate) perturb_times: Option<i64>,
 }
 
@@ -102,9 +105,6 @@ impl ReadArgs {
         let mut components = stem.split('_').rev();
         self.perturb_times = components.next().and_then(|s| s.parse::<i64>().ok());
         components.next();
-        self.perturb_final = components.next().and_then(|s| s.parse::<f64>().ok());
-        self.perturb_step = components.next().and_then(|s| s.parse::<f64>().ok());
-        self.perturb_init = components.next().and_then(|s| s.parse::<f64>().ok());
         self.final_u = components.next().and_then(|s| s.parse::<f64>().ok());
         self.step_u = components.next().and_then(|s| s.parse::<f64>().ok());
         self.init_input_u = components.next().and_then(|s| s.parse::<f64>().ok());
@@ -114,9 +114,6 @@ impl ReadArgs {
             && self.init_input_u.is_some()
             && self.step_u.is_some()
             && self.final_u.is_some()
-            && self.perturb_init.is_some()
-            && self.perturb_step.is_some()
-            && self.perturb_final.is_some()
             && self.perturb_times.is_some()
         {
             Ok(())
@@ -141,13 +138,15 @@ impl ReadArgs {
 }
 
 #[derive(Args)]
+#[command(version, about)]
 pub struct CalcArgs {
+    /// Path to the seed folder including `.cell`, `.param` and other necessary files.
+    pub(crate) seed_path: String,
+    /// `u` or `alpha`
+    pub(crate) jobtype: JobType,
+    /// `parallel` or `serial`
     #[arg(short, long, default_value_t = ProgramMode::Parallel)]
     pub(crate) mode: ProgramMode,
-    #[arg(long = "seedpath")]
-    pub(crate) seed_path: String,
-    #[arg(short, long)]
-    pub(crate) jobtype: JobType,
     #[arg(long, default_value_t = 0.0)]
     pub(crate) init_input_u: f64,
     #[arg(long, default_value_t = 2.0)]

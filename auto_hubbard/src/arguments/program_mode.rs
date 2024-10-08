@@ -6,7 +6,7 @@ use clap::ValueEnum;
 pub enum ProgramMode {
     Serial,
     Parallel,
-    Read,
+    // Read,
 }
 
 impl Display for ProgramMode {
@@ -14,7 +14,7 @@ impl Display for ProgramMode {
         match self {
             ProgramMode::Serial => f.write_str("serial"),
             ProgramMode::Parallel => f.write_str("parallel"),
-            ProgramMode::Read => f.write_str("read"),
+            // ProgramMode::Read => f.write_str("read"),
         }
     }
 }
