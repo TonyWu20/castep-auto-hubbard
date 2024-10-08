@@ -4,6 +4,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
 use std::str::FromStr;
 
 use clap::Args;
@@ -132,6 +133,7 @@ impl ReadArgs {
             .arg(format!("{}", &self.step_u.unwrap()))
             .arg(format!("{}", &self.final_u.unwrap()))
             .arg(format!("{}", &self.perturb_times.unwrap()))
+            .stdout(Stdio::inherit())
             .output()
             .expect("Failed to start auto_hubbard_linux.sh in read mode");
         io::stdout().write_all(&output.stdout)?;
@@ -175,6 +177,7 @@ impl CalcArgs {
             .arg(format!("{}", &self.perturb_init))
             .arg(format!("{}", &self.perturb_step))
             .arg(format!("{}", &self.perturb_final))
+            .stdout(Stdio::inherit())
             .output()
             .expect("Failed to start auto_hubbard_linux.sh in read mode");
         io::stdout().write_all(&output.stdout)?;
