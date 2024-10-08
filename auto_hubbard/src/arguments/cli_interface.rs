@@ -104,9 +104,11 @@ impl ReadArgs {
             .to_string();
         let mut components = stem.split('_').rev();
         self.perturb_times = components.next().and_then(|s| s.parse::<i64>().ok());
-        for _ in 0..5 {
-            components.next();
-        }
+        components.next();
+        components.next();
+        components.next();
+        components.next();
+        components.next();
         self.final_u = components.next().and_then(|s| s.parse::<f64>().ok());
         self.step_u = components.next().and_then(|s| s.parse::<f64>().ok());
         self.init_input_u = components.next().and_then(|s| s.parse::<f64>().ok());
