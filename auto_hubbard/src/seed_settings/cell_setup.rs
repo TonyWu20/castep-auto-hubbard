@@ -1,5 +1,5 @@
 use std::{
-    fs::{read_to_string, rename, write},
+    fs::{read_to_string, write},
     path::Path,
 };
 
@@ -52,6 +52,7 @@ pub fn hubbard_before<P: AsRef<Path>>(
     }
     #[cfg(not(debug_assertions))]
     {
+        use std::fs::rename;
         rename(new_cell_file, cell_file.as_ref())
     }
 }
