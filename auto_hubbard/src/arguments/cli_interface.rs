@@ -45,13 +45,13 @@ pub struct ReadArgs {
     #[arg(short, long)]
     /// Interpreted from the folder name by default.
     pub(crate) jobtype: Option<JobType>,
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     /// Interpreted from the folder name by default.
     pub(crate) init_input_u: Option<f64>,
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     /// Interpreted from the folder name by default.
     pub(crate) step_u: Option<f64>,
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     /// Interpreted from the folder name by default.
     pub(crate) final_u: Option<f64>,
     #[arg(long)]
@@ -151,17 +151,17 @@ pub struct CalcArgs {
     /// `parallel` or `serial`
     #[arg(short, long, default_value_t = ProgramMode::Parallel)]
     pub(crate) mode: ProgramMode,
-    #[arg(long, default_value_t = 0.0)]
+    #[arg(long, default_value_t = 0.0, allow_negative_numbers = true)]
     pub(crate) init_input_u: f64,
-    #[arg(long, default_value_t = 2.0)]
+    #[arg(long, default_value_t = 2.0, allow_negative_numbers = true)]
     pub(crate) step_u: f64,
-    #[arg(long, default_value_t = 12.0)]
+    #[arg(long, default_value_t = 12.0, allow_negative_numbers = true)]
     pub(crate) final_u: f64,
-    #[arg(long, default_value_t = 0.05)]
+    #[arg(long, default_value_t = 0.05, allow_negative_numbers = true)]
     pub(crate) perturb_init: f64,
-    #[arg(long, default_value_t = 0.05)]
+    #[arg(long, default_value_t = 0.05, allow_negative_numbers = true)]
     pub(crate) perturb_step: f64,
-    #[arg(long, default_value_t = 0.25)]
+    #[arg(long, default_value_t = 0.25, allow_negative_numbers = true)]
     pub(crate) perturb_final: f64,
 }
 
