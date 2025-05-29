@@ -8,3 +8,15 @@ clap = { version = "4.5.18", features = ["derive"] }
 inquire = "0.7.5"
 regex = "1.10.6"
 tracing-subscriber = "0.3.18"
+castep-cell-parser = {git = "https://github.com/TonyWu20/castep-cell-parser", branch = "main"}
+castep-periodic-table = "0.5.2"
+derive_builder = "0.20.2"
+anyhow = "1.0.98"
+pest = "2.8.0"
+from-pest = "0.3.3"
+pest_derive = "2.8.0"
+
+[dev-dependencies]
+from-pest = "0.3.3"
+pest = "2.8.0"
+pest_derive = "2.8.0"

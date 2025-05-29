@@ -3,6 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use clap::ValueEnum;
 
 mod cell_setup;
+mod hubbard;
 mod param_setup;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
