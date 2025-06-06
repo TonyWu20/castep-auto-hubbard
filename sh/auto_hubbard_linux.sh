@@ -12,8 +12,8 @@ init_elec_energy_tol=1e-5
 # start castep calculation.
 castep_command_u="qsub hpc.pbs_AU.sh"
 castep_command_alpha="qsub hpc.pbs_HU.sh"
-castep_command_u="faux_castep_run GDY_111_Fe_U"
-castep_command_alpha="faux_castep_run GDY_111_Fe_U"
+# castep_command_u="faux_castep_run GDY_111_Fe_U"
+# castep_command_alpha="faux_castep_run GDY_111_Fe_U"
 
 source "$(dirname "$0")"/functions_linux.sh
 
