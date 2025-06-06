@@ -33,18 +33,27 @@ function setup {
 	final_U=$5
 	job_type_input "$6"
 	job_type=$input_job_type
-	new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
 }
 
 function setup_new_seed_folder {
-	new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
-	cp -r "$SEED_PATH" "$new_seed_path"
+	# Set new folder inside the $SEED_PATH - 2025-06-06
+	# Current position: auto_hubbard_linux.sh location
+	local new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
+	echo "New directory: $new_seed_path"
+	cd "$SEED_PATH" || exit
+	# cd into $SEED_PATH
+	echo "setup_new_seed_folder:${pwd}"
+	mkdir $new_seed_path
+	echo "Use 'find' to filter out result files and directory and then copy to new folder"
+	find . -maxdepth 1 -type f -name "*.param" -o -type f -name "*.cell" | xargs -I {} cp {} "$new_seed_path"/{}
+	# Set the next $SEED_PATH to this created_folder as the base.
 	SEED_PATH=$new_seed_path
 	log_path=$(create_log "$job_type")
 	# create a new final datasheet every time
-	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type"_final.csv
+	printf "Jobname,Channel ID,Spin,Before SCF,1st SCF,Last SCF,Converged\n" >"$SEED_PATH"/result_"$job_type"_final.csv
 	# create a datasheet for instant recording
-	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$SEED_PATH"/result_"$job_type".csv
+	printf "Jobname,Channel ID,Spin,Before SCF,1st SCF,Last SCF,Converged\n" >"$SEED_PATH"/result_"$job_type".csv
+	# position: $SEED_PATH
 }
 
 function setup_perturbation {
@@ -155,6 +164,7 @@ function setup_before_perturb {
 	# copy files without '.castep' to U_x
 	echo "copy files"
 	find . -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$folder_name"
+	echo "$(pwd)"
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
 	# setup cell
@@ -296,7 +306,8 @@ function format_data_output {
 	local is_converged=$5
 	local write_path=$6
 	local result
-	result=$(grep -Ei "[[:blank:]]+${species_id}[[:blank:]]+${spin} Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
+	# Remove the redundant space after comma, in `awk` command
+	result=$(grep -Ei "[[:blank:]]+${species_id}[[:blank:]]+${spin} Total" "$castep_file" | awk 'NR==1 {printf "%.16f,", $4}; NR==2 {printf "%.16f,", $4}; END {printf "%.16f", $4} ORS=""')
 	printf "%s,%i,%i,%s,%s\n" "$finished_job_name" "$species_id" "$spin" "$result" "$is_converged" >>"$write_path"
 }
 
@@ -362,16 +373,17 @@ function routine {
 
 function create_log {
 	local job_type=$1
-	local current_dir
-	current_dir=$(pwd)
+	# local current_dir
+	# current_dir=$(pwd)
 	local log_path
-	log_path="$current_dir"/"$SEED_PATH"/log_"$job_type".txt
+	log_path="$SEED_PATH"/log_"$job_type".txt
 	true >"$log_path"
 	echo log_path
 }
 
 function serial {
 	cd "$SEED_PATH" || exit
+	echo "$(pwd)"
 	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		routine "$init_hubbard_u" "$curr_u" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
 	done
@@ -481,5 +493,5 @@ function after_read {
 }
 
 function use_hubbard_data {
-	hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
+	./hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
 }
