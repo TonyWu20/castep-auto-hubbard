@@ -1,4 +1,7 @@
-use polars::prelude::{JoinType, LazyFrame};
+use polars::{
+    functions::concat_df_horizontal,
+    prelude::{JoinType, LazyFrame},
+};
 use std::path::Path;
 
 use polars::{
@@ -88,32 +91,33 @@ pub fn get_result(
         .collect()?)
 }
 
+/// Concat dataframe of u and alpha with same channel id horizontally,
+/// for the ease of plotting
 pub fn view_by_channel_id(
     df_u: &DataFrame,
     df_alpha: &DataFrame,
     channel_id: u32,
 ) -> Result<LazyFrame, PolarsError> {
-    Ok(df_u
-        .clone()
-        .lazy()
-        .filter(col("Channel ID").eq(lit(channel_id)))
-        .select([col("U"), col("u_pert"), col("n1-nF").alias("n1-nF_U")])
-        .join(
+    Ok(concat_df_horizontal(
+        &[
+            df_u.clone()
+                .lazy()
+                .filter(col("Channel ID").eq(lit(channel_id)))
+                .select([col("U"), col("u_pert"), col("n1-nF").alias("n1-nF_U")])
+                .collect()?,
             df_alpha
                 .clone()
                 .lazy()
                 .filter(col("Channel ID").eq(lit(channel_id)))
-                .select([
-                    col("U"),
-                    col("alpha_pert"),
-                    col("n1-nF").alias("n1-nF_Alpha"),
-                ]),
-            [col("U")],
-            [col("U")],
-            JoinArgs::new(JoinType::Left),
-        ))
+                .select([col("alpha_pert"), col("n1-nF").alias("n1-nF_Alpha")])
+                .collect()?,
+        ],
+        false,
+    )?
+    .lazy())
 }
 
+/// Group values of same `U` and compute the average of `n1-nF_u` and `n1-nF_Alpha`
 pub fn view_mean(channel_view: LazyFrame) -> Result<DataFrame, PolarsError> {
     channel_view
         .group_by_stable([col("U"), col("u_pert"), col("alpha_pert")])
@@ -131,7 +135,7 @@ mod test {
         prelude::{CsvWriter, col},
     };
 
-    use crate::dataframe::{get_result, view_by_channel_id};
+    use crate::dataframe::{get_result, view_by_channel_id, view_mean};
 
     #[test]
     fn test_df() {
@@ -154,12 +158,7 @@ mod test {
             let channel_view_lz =
                 view_by_channel_id(&result_df_u, &result_df_alpha, i.unwrap()).unwrap();
             let channel_view = channel_view_lz.clone().collect().unwrap();
-            let channel_view_mean = channel_view_lz
-                .group_by_stable([col("U"), col("u_pert"), col("alpha_pert")])
-                .agg([col("n1-nF_U").mean(), col("n1-nF_Alpha").mean()])
-                .select([col("U"), col("n1-nF_U"), col("n1-nF_Alpha")])
-                .collect()
-                .unwrap();
+            let channel_view_mean = view_mean(channel_view_lz).unwrap();
             println!("{}", channel_view);
             println!("{}", channel_view_mean);
         });
