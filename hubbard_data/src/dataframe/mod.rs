@@ -1,14 +1,11 @@
-use polars::{
-    functions::concat_df_horizontal,
-    prelude::{JoinType, LazyFrame},
-};
+use polars::{functions::concat_df_horizontal, prelude::LazyFrame};
 use std::path::Path;
 
 use polars::{
     error::PolarsError,
     frame::DataFrame,
     lazy::dsl::sum_horizontal,
-    prelude::{DataType, IntoLazy, JoinArgs, LazyCsvReader, LazyFileListReader, col, lit},
+    prelude::{DataType, IntoLazy, LazyCsvReader, LazyFileListReader, col, lit},
 };
 
 use crate::config::JobType;
@@ -145,20 +142,18 @@ pub fn view_mean(channel_view: LazyFrame) -> Result<DataFrame, PolarsError> {
 mod test {
     use std::path::Path;
 
-    use polars::{
-        io::SerWriter,
-        prelude::{CsvWriter, col},
-    };
+    use catppuccin::Rgb;
+    use plotters::style::RGBColor;
+    use polars::{io::SerWriter, prelude::CsvWriter};
 
-    use crate::dataframe::{get_result, view_by_channel_id, view_mean};
+    use crate::dataframe::{get_result, plot::plot_channel_mean, view_by_channel_id, view_mean};
 
     #[test]
     fn test_df() {
         let result_folder = Path::new("../sorting");
         let mut result_df_u = get_result(result_folder, 0.05, crate::config::JobType::U).unwrap();
-        let mut result_df_alpha =
+        let result_df_alpha =
             get_result(result_folder, 0.05, crate::config::JobType::Alpha).unwrap();
-        println!("{}", result_df_u);
         let mut result_file = std::fs::File::create("test_sorting.csv").unwrap();
         CsvWriter::new(&mut result_file)
             .finish(&mut result_df_u)
@@ -169,13 +164,25 @@ mod test {
             .unique_stable()
             .unwrap();
         println!("{:?}", ids.u32().unwrap());
-        ids.u32().unwrap().iter().for_each(|i| {
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.lavender.rgb;
+        let lavender = RGBColor(r, g, b);
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.maroon.rgb;
+        let maroon = RGBColor(r, g, b);
+        ids.u32().unwrap().iter().for_each(|i: Option<u32>| {
             let channel_view_lz =
                 view_by_channel_id(&result_df_u, &result_df_alpha, i.unwrap()).unwrap();
             let channel_view = channel_view_lz.clone().collect().unwrap();
             println!("{}", channel_view);
             let channel_view_mean = view_mean(channel_view_lz).unwrap();
             println!("{}", channel_view_mean);
+            plot_channel_mean(
+                &channel_view_mean,
+                i.unwrap(),
+                result_folder,
+                maroon,
+                lavender,
+            )
+            .unwrap();
         });
     }
 }

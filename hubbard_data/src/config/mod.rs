@@ -18,19 +18,6 @@ impl JobType {
         }
     }
 
-    /// result of channels filename
-    /// # Return
-    /// - "channel_{id}_sorted_{JobType}.csv"
-    pub fn channel_filename(&self, channel_id: u32) -> String {
-        format!(
-            "channel_{}_sorted_{}.csv",
-            channel_id,
-            match self {
-                JobType::U => "U",
-                JobType::Alpha => "alpha",
-            }
-        )
-    }
     /// Alias for column of perturbation
     /// # Return
     /// - `JobType::U` => "u_pert",
