@@ -120,7 +120,22 @@ pub fn view_by_channel_id(
 /// Group values of same `U` and compute the average of `n1-nF_u` and `n1-nF_Alpha`
 pub fn view_mean(channel_view: LazyFrame) -> Result<DataFrame, PolarsError> {
     channel_view
-        .group_by_stable([col("U"), col("u_pert"), col("alpha_pert")])
+        // Group by "U"
+        //┌─────┬────────────┬─────────────┐
+        //│ U   ┆ n1-nF_U    ┆ n1-nF_Alpha │
+        //│ --- ┆ ---        ┆ ---         │
+        //│ i32 ┆ f64        ┆ f64         │
+        //╞═════╪════════════╪═════════════╡
+        //│ 0   ┆ 7.4593e-18 ┆ 31.308104   │
+        //│ 2   ┆ 1.253893   ┆ 8.065987    │
+        //│ 4   ┆ 2.824379   ┆ 2.05173     │
+        //│ 6   ┆ 4.357392   ┆ 1.033147    │
+        //│ 8   ┆ 4.234919   ┆ 8.160309    │
+        //│ 10  ┆ 11.621275  ┆ 13.932687   │
+        //│ 12  ┆ 6.091781   ┆ -2.91931    │
+        //└─────┴────────────┴─────────────┘
+        //
+        .group_by_stable([col("U")])
         .agg([col("n1-nF_U").mean(), col("n1-nF_Alpha").mean()])
         .select([col("U"), col("n1-nF_U"), col("n1-nF_Alpha")])
         .collect()
@@ -158,8 +173,8 @@ mod test {
             let channel_view_lz =
                 view_by_channel_id(&result_df_u, &result_df_alpha, i.unwrap()).unwrap();
             let channel_view = channel_view_lz.clone().collect().unwrap();
-            let channel_view_mean = view_mean(channel_view_lz).unwrap();
             println!("{}", channel_view);
+            let channel_view_mean = view_mean(channel_view_lz).unwrap();
             println!("{}", channel_view_mean);
         });
     }
