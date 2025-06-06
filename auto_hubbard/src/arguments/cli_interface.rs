@@ -135,7 +135,7 @@ impl ReadArgs {
             .arg(format!("{}", &self.perturb_times.unwrap()))
             .stdout(Stdio::inherit())
             .output()
-            .expect("Failed to start auto_hubbard_linux.sh in read mode");
+            .expect("Failed to start `auto_hubbard_linux.sh` in read mode; check if `auto_hubbard_linux.sh` is in current working directory");
         io::stdout().write_all(&output.stdout)?;
         io::stderr().write_all(&output.stderr)
     }
@@ -179,7 +179,7 @@ impl CalcArgs {
             .arg(format!("{}", &self.perturb_final))
             .stdout(Stdio::inherit())
             .output()
-            .expect("Failed to start auto_hubbard_linux.sh in read mode");
+            .expect("Failed to start `auto_hubbard_linux.sh` in calc mode; check if `auto_hubbard_linux.sh` is in current working directory");
         io::stdout().write_all(&output.stdout)?;
         io::stderr().write_all(&output.stderr)
     }
