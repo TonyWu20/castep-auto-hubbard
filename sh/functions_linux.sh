@@ -296,7 +296,7 @@ function format_data_output {
 	local write_path=$6
 	local result
 	result=$(grep -Ei "[[:blank:]]+${species_id}[[:blank:]]+${spin} Total" "$castep_file" | awk 'NR==1 {printf "%.16f, ", $4}; NR==2 {printf "%.16f, ", $4}; END {printf "%.16f", $4} ORS=""')
-	printf "%s, %i, %i, %s, %s\n" "$finished_job_name" "$species_id" "$spin" "$result" "$is_converged" >>"$write_path"
+	printf "%s,%i,%i,%s,%s\n" "$finished_job_name" "$species_id" "$spin" "$result" "$is_converged" >>"$write_path"
 }
 
 function write_data_converged {
@@ -460,7 +460,7 @@ function after_read {
 	current_dir=$(pwd)
 	local post_total_path
 	post_total_path=result_"$job_type"_post_read.csv
-	printf "Jobname, Channel ID, Spin, Before SCF, 1st SCF, Last SCF, Converged\n" >"$post_total_path"
+	printf "Jobname,Channel ID,Spin,Before SCF,1st SCF,Last SCF,Converged\n" >"$post_total_path"
 	for u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		local target_dir
 		target_dir=U_"$u"_"$job_type"
