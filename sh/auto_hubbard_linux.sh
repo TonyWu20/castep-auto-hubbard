@@ -17,70 +17,84 @@ castep_command_alpha="faux_castep_run GDY_111_Fe_U"
 
 source "$(dirname "$0")"/functions_linux.sh
 
-# First argument is seed file folder path
-if [[ $1 == '' ]]; then
-	read -r -e -p "seed file folder path:" SEED_PATH
-else
-	SEED_PATH=$1
-fi
-
-# Second argument is job type: u or alpha
-# Will be reconfirmed for blank or invalid input
-job_type_arg=$2
-job_type_input "$job_type_arg"
-
 # List of running modes for selection
-RUN_MODES=(serial parallel read)
-# Third  argument is running mode
-if [[ $3 == '' ]]; then
+RUN_MODES=(serial parallel read draw)
+# First  argument is running mode
+if [[ $1 == '' ]]; then
 	PS3="Please choose running mode (enter number): "
 	select choice in "${RUN_MODES[@]}"; do
 		case $choice in
-		serial | parallel | read)
+		serial | parallel | read | draw)
 			run_mode="$choice"
 			break
 			;;
 		*) echo "Invalid option $choice" ;;
 		esac
 	done
-elif [[ $3 == 'serial' || $3 == 'parallel' || $3 == 'read' ]]; then
-	run_mode=$3
+elif [[ $1 == 'serial' || $1 == 'parallel' || $1 == 'read' || $1 == 'draw' ]]; then
+	run_mode=$1
 else
-	echo "Invalid input of running mode (serial/parallel/read), please restart the program"
+	echo "Invalid input of running mode (serial/parallel/read/draw), please restart the program"
 	exit
 fi
 
-init_input_U=0
-U_increment=2
-final_U=12
+# init_input_U=0
+# U_increment=2
+# final_U=12
 # set init input U, U step, final U
-if [[ $4 == '' ]]; then
-	read -r -e -p "Initial input U (default to 0): " init_input_u
-	init_input_U=${init_input_u:-0}
-elif [[ $4 =~ ^[0-9]+$ ]]; then
-	init_input_U=$4
-else
-	echo "Input init U is not a valid integer; run by default 0"
-fi
-if [[ $5 == '' ]]; then
-	read -r -e -p "Input U increment step (default to 2): " step_u
-	U_increment=${step_u:-2}
-elif [[ $5 =~ ^[0-9]+$ ]]; then
-	U_increment=$5
-else
-	echo "Input U increment step is not a valid integer; run by default 2"
-fi
-if [[ $6 == '' ]]; then
-	read -r -e -p "Final input U (default to 12): " final_u
-	final_U=${final_u:-12}
-elif [[ $6 =~ ^[0-9]+$ ]]; then
-	final_U=$6
-else
-	echo "Input final U is not a valid integer; run by default 12"
-fi
-
 case $run_mode in
+draw)
+	if [[ $2 == '' ]]; then
+		read -r -e -p "Please enter the directory which has 'result_u_final.csv' and 'result_alpha_final.csv':" data_source
+		DATA_SOURCE=$data_source
+	else
+		DATA_SOURCE=$2
+	fi
+	if [[ $3 == '' ]]; then
+		read -r -e -p "Perturb increment (e.g. +0.05/per step): " increment
+		PERTURB_INCREMENT=${increment:-0.05}
+	else
+		PERTURB_INCREMENT=$3
+	fi
+	use_hubbard_data
+	;;
 serial | parallel)
+	# Second argument is seed file folder path
+	if [[ $2 == '' ]]; then
+		read -r -e -p "seed file folder path:" SEED_PATH
+	else
+		SEED_PATH=$2
+	fi
+
+	# Third argument is job type: u or alpha
+	# Will be reconfirmed for blank or invalid input
+	job_type_arg=$3
+	job_type_input "$job_type_arg"
+	if [[ $4 == '' ]]; then
+		read -r -e -p "Initial input U (default to 0): " init_input_u
+		init_input_U=${init_input_u:-0}
+	elif [[ $4 =~ ^[0-9]+$ ]]; then
+		init_input_U=$4
+	else
+		echo "Input init U is not a valid integer; run by default 0"
+	fi
+	if [[ $5 == '' ]]; then
+		read -r -e -p "Input U increment step (default to 2): " step_u
+		U_increment=${step_u:-2}
+	elif [[ $5 =~ ^[0-9]+$ ]]; then
+		U_increment=$5
+	else
+		echo "Input U increment step is not a valid integer; run by default 2"
+	fi
+	if [[ $6 == '' ]]; then
+		read -r -e -p "Final input U (default to 12): " final_u
+		final_U=${final_u:-12}
+	elif [[ $6 =~ ^[0-9]+$ ]]; then
+		final_U=$6
+	else
+		echo "Input final U is not a valid integer; run by default 12"
+	fi
+
 	#  the initial alpha value shift in perturbation
 	if [[ $7 == '' ]]; then
 		read -r -e -p "Perturb initial Δalpha (default to 0.05): " init_alpha
@@ -126,6 +140,41 @@ serial | parallel)
 	esac
 	;;
 read)
+	if [[ $2 == '' ]]; then
+		read -r -e -p "seed file folder path:" SEED_PATH
+	else
+		SEED_PATH=$2
+	fi
+
+	# Second argument is job type: u or alpha
+	# Will be reconfirmed for blank or invalid input
+	job_type_arg=$3
+	job_type_input "$job_type_arg"
+	if [[ $4 == '' ]]; then
+		read -r -e -p "Initial input U (default to 0): " init_input_u
+		init_input_U=${init_input_u:-0}
+	elif [[ $4 =~ ^[0-9]+$ ]]; then
+		init_input_U=$4
+	else
+		echo "Input init U is not a valid integer; run by default 0"
+	fi
+	if [[ $5 == '' ]]; then
+		read -r -e -p "Input U increment step (default to 2): " step_u
+		U_increment=${step_u:-2}
+	elif [[ $5 =~ ^[0-9]+$ ]]; then
+		U_increment=$5
+	else
+		echo "Input U increment step is not a valid integer; run by default 2"
+	fi
+	if [[ $6 == '' ]]; then
+		read -r -e -p "Final input U (default to 12): " final_u
+		final_U=${final_u:-12}
+	elif [[ $6 =~ ^[0-9]+$ ]]; then
+		final_U=$6
+	else
+		echo "Input final U is not a valid integer; run by default 12"
+	fi
+
 	if [[ $7 == '' ]]; then
 		read -r -e -p "How many times of perturbation did you set? " PERTURB_TIMES
 	else

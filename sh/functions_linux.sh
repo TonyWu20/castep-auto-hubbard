@@ -33,6 +33,7 @@ function setup {
 	final_U=$5
 	job_type_input "$6"
 	job_type=$input_job_type
+	new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
 }
 
 function setup_new_seed_folder {
@@ -455,7 +456,10 @@ function after_read_in_every_U {
 }
 
 function after_read {
-	cd "$SEED_PATH" || exit
+	cd "$SEED_PATH" || {
+		echo "$SEED_PATH does not exist"
+		exit
+	}
 	local current_dir
 	current_dir=$(pwd)
 	local post_total_path
@@ -464,6 +468,7 @@ function after_read {
 	for u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		local target_dir
 		target_dir=U_"$u"_"$job_type"
+		echo "$current_dir"
 		cd "$target_dir" || {
 			echo "Directory: $target_dir does not exist, skip"
 			continue
@@ -473,4 +478,8 @@ function after_read {
 		read_data "$u" "$job_type" local_result_"$job_type"_post.csv "$post_total_path"
 	done
 	cat "$post_total_path"
+}
+
+function use_hubbard_data {
+	hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
 }
