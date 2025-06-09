@@ -142,6 +142,8 @@ pub fn view_mean(channel_view: LazyFrame) -> Result<DataFrame, PolarsError> {
 mod test {
     use std::path::Path;
 
+    use catppuccin::Rgb;
+    use plotters::style::RGBColor;
     use polars::{io::SerWriter, prelude::CsvWriter};
 
     use crate::dataframe::{get_result, plot::plot_channel_mean, view_by_channel_id, view_mean};
@@ -162,6 +164,10 @@ mod test {
             .unique_stable()
             .unwrap();
         println!("{:?}", ids.u32().unwrap());
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.lavender.rgb;
+        let lavender = RGBColor(r, g, b);
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.maroon.rgb;
+        let maroon = RGBColor(r, g, b);
         ids.u32().unwrap().iter().for_each(|i: Option<u32>| {
             let channel_view_lz =
                 view_by_channel_id(&result_df_u, &result_df_alpha, i.unwrap()).unwrap();
@@ -169,7 +175,14 @@ mod test {
             println!("{}", channel_view);
             let channel_view_mean = view_mean(channel_view_lz).unwrap();
             println!("{}", channel_view_mean);
-            plot_channel_mean(&channel_view_mean, i.unwrap(), result_folder).unwrap();
+            plot_channel_mean(
+                &channel_view_mean,
+                i.unwrap(),
+                result_folder,
+                maroon,
+                lavender,
+            )
+            .unwrap();
         });
     }
 }

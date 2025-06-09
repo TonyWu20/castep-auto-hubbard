@@ -3,8 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use catppuccin::Rgb;
 use clap::Parser;
 use dataframe::{get_result, plot::plot_channel_mean, view_by_channel_id, view_mean};
+use plotters::style::RGBColor;
 use polars::{frame::DataFrame, io::SerWriter, prelude::CsvWriter};
 
 mod config;
@@ -39,11 +41,11 @@ fn write_view_by_channel_id(
         let mut file_mean = std::fs::File::create(
             result_folder.join(format!("channel_{}_sorted_mean.csv", channel_id)),
         )?;
-        // let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.lavender.rgb;
-        // let lavender = RGBColor(r, g, b);
-        // let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.maroon.rgb;
-        // let maroon = RGBColor(r, g, b);
-        plot_channel_mean(&result_mean, channel_id, result_folder)?;
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.lavender.rgb;
+        let lavender = RGBColor(r, g, b);
+        let Rgb { r, g, b } = catppuccin::PALETTE.latte.colors.maroon.rgb;
+        let maroon = RGBColor(r, g, b);
+        plot_channel_mean(&result_mean, channel_id, result_folder, lavender, maroon)?;
         CsvWriter::new(&mut file).finish(&mut result)?;
         CsvWriter::new(&mut file_mean).finish(&mut result_mean)?;
         Ok::<(), anyhow::Error>(())
