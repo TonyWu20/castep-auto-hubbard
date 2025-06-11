@@ -535,11 +535,13 @@ function use_hubbard_data {
 	u_perturb_value=$(echo "$u_source" | sed -E 's/.*_[0-9.]+_([0-9.]+)_[0-9.]+_STEPS.*/\1/')
 	alpha_perturb_value=$(echo "$alpha_source" | sed -E 's/.*_[0-9.]+_([0-9.]+)_[0-9.]+_STEPS.*/\1/')
 
-	if [ "$u_perturb_value" != "$alpha_perturb_value"]; then
+	if [ "$u_perturb_value" != "$alpha_perturb_value" ]; then
 		echo "Perturbation value of U ($u_perturb_value) and Alpha ($alpha_perturb_value) do not match; \
 this is currently unsupported by the plotting program 'hubbard_data'."
 		exit 1
 	fi
+
+	PERTURB_INCREMENT=$u_perturb_value
 
 	local plot_dir
 	plot_dir=plot_"$u_U_steps"
