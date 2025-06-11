@@ -5,9 +5,10 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
-catppuccin = "2.5.1"
+# catppuccin = "2.5.1"
 clap = { version = "4.5.39", features = ["derive"] }
-plotters = { version = "0.3.7", features = ["fontconfig-dlopen"] }
+plotlars = "0.9.4"
+# plotters = { version = "0.3.7", features = ["fontconfig-dlopen"] }
 polars = { version = "0.48.1", features = ["lazy", "concat_str", "strings", "dtype-i128", ] }
 
 [target.x86_64-unknown-linux-gnu]
