@@ -18,7 +18,7 @@ function job_type_input {
 	alpha | Alpha) job_type="alpha" ;;
 	*)
 		echo "Invalid job type input; ends program"
-		exit
+		exit 1
 		;;
 	esac
 
@@ -40,7 +40,7 @@ function setup_new_seed_folder {
 	# Current position: auto_hubbard_linux.sh location
 	local new_seed_path="$SEED_PATH"_"$job_type"_"$init_input_u"_"$u_step"_"$final_U"_"$PERTURB_INIT_ALPHA"_"$PERTURB_INCREMENT"_"$PERTURB_FINAL_ALPHA"_STEPS_"$PERTURB_TIMES"
 	echo "New directory: $new_seed_path"
-	cd "$SEED_PATH" || exit
+	cd "$SEED_PATH" || exit 1
 	# cd into $SEED_PATH
 	echo "setup_new_seed_folder:${pwd}"
 	if [ ! -d $new_seed_path ]; then
@@ -116,8 +116,8 @@ function hubbard_before {
 		alpha_value=$i_u_value
 		;;
 	*)
-		echo "invalid job_type input: $job_type, exit"
-		exit
+		echo "invalid job_type input: $job_type, exit 1"
+		exit 1
 		;;
 	esac
 	# Replace current values in HUBBARD_U with $U_value
@@ -250,13 +250,13 @@ function start_job {
 	job_name=$(find ./"$job_dir" -maxdepth 1 -type f -name "*.cell" | awk '{filename=$NF; sub(/\.[^.]+$/, "", filename); print filename}')
 	local castep_command
 	local castep_file="$job_name.castep"
-	# Early exit if the job has been done.
+	# Early exit 1 if the job has been done.
 	if [[ -f "$castep_file" && "$(grep -c "Finalisation time" "$castep_file")" -gt 0 ]]; then
 		echo "Current castep job has been completed! Skip now"
 		write_data_converged "$castep_file" "$job_name" "$job_dir" "$job_type" "$result_path"
 		return 1
 	else
-		cd "$job_dir" || exit
+		cd "$job_dir" || exit 1
 		case $job_type in
 		U | u)
 			cp "$castep_program_u_path" "$current_dir"/"$job_dir"/"$castep_program_u"
@@ -266,7 +266,7 @@ function start_job {
 			cp "$castep_program_alpha_path" "$current_dir"/"$job_dir"/"$castep_program_alpha"
 			castep_command="$castep_command_alpha"
 			;;
-		*) exit ;;
+		*) exit 1 ;;
 		esac
 		# Here is the command to start calculation
 		# Use a single & to move the job to background
@@ -274,7 +274,7 @@ function start_job {
 		# $castep_command "$job_name" 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
 		# cluster, only script needed
 		$castep_command 2>&1 | tee -a "$current_dir"/log_"$job_type".txt
-		cd "$current_dir" || exit
+		cd "$current_dir" || exit 1
 		monitor_job_done "$job_dir" "$job_type" "$result_path"
 	fi
 }
@@ -393,7 +393,7 @@ function create_log {
 }
 
 function serial {
-	cd "$SEED_PATH" || exit
+	cd "$SEED_PATH" || exit 1
 	echo "$(pwd)"
 	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		routine "$init_hubbard_u" "$curr_u" "$init_elec_energy_tol" "$job_type" "$log_path" "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
@@ -407,7 +407,7 @@ function serial {
 
 function parallel {
 	local N=$1
-	cd "$SEED_PATH" || exit
+	cd "$SEED_PATH" || exit 1
 	for curr_u in $(seq "$init_input_u" "$u_step" "$final_U"); do
 		(
 			# .. do your stuff here
@@ -474,14 +474,14 @@ function after_read_in_every_U {
 			continue
 		}
 		grep_data_with_check "$result_path"
-		cd "$cwd" || exit
+		cd "$cwd" || exit 1
 	done
 }
 
 function after_read {
 	cd "$SEED_PATH" || {
 		echo "$SEED_PATH does not exist"
-		exit
+		exit 1
 	}
 	local current_dir
 	current_dir=$(pwd)
@@ -497,14 +497,70 @@ function after_read {
 			continue
 		}
 		after_read_in_every_U
-		cd "$current_dir" || exit
+		cd "$current_dir" || exit 1
 		read_data "$u" "$job_type" local_result_"$job_type"_post.csv "$post_total_path"
 	done
 	cat "$post_total_path"
 }
 
 function use_hubbard_data {
-	# Make sure the csv does not have extra space between commas
-	sed -i 's/, /,/g' "$DATA_SOURCE"/*.csv
-	./hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
+	local current_dir
+	local u_source
+	local alpha_source
+	current_dir=$(pwd)
+	cd $DATA_SOURCE || exit 1
+	# Under $current_dir/$DATA_SOURCE
+	read -r -e -p "Please input the directory of Hubbard U task (e.g.: ZnO_u_0_2_12_0.05_0.05_0.25_STEPS_5): " u_source
+	while [ u_source == '' ]; do
+		read -r -e -p "Please input the directory of Hubbard U task (e.g.: ZnO_u_0_2_12_0.05_0.05_0.25_STEPS_5): " u_source
+	done
+	read -r -e -p "Please input the directory of Hubbard Alpha task (e.g.: ZnO_alpha_0_2_12_0.05_0.05_0.25_STEPS_5): " alpha_source
+	while [ alpha_source == '' ]; do
+		read -r -e -p "Please input the directory of Hubbard Alpha task (e.g.: ZnO_alpha_0_2_12_0.05_0.05_0.25_STEPS_5): " alpha_source
+	done
+	local u_U_steps
+	local alpha_U_steps
+	# Match U steps of Hubbard U task from folder name
+	u_U_steps=$(echo "$u_source" | sed -r 's/.*_u_([0-9]+_[0-9]+_[0-9]+).*/\1/')
+	# Match U steps of Hubbard Alpha task from folder name
+	alpha_U_steps=$(echo "$alpha_source" | sed -r 's/.*_alpha_([0-9]+_[0-9]+_[0-9]+).*/\1/')
+	# Guard: if $u_U_steps and $alpha_U_steps are not the same, exit 1 the program
+	if [ "$u_U_steps" != "$alpha_U_steps" ]; then
+		echo "$u_source and $alpha_source do not match; they have different settings of starting U, U step and ending U: $u_U_steps vs $alpha_U_steps"
+		exit 1
+	fi
+
+	local u_perturb_value
+	local alpha_perturb_value
+	u_perturb_value=$(echo "$u_source" | sed -E 's/.*_[0-9.]+_([0-9.]+)_[0-9.]+_STEPS.*/\1/')
+	alpha_perturb_value=$(echo "$alpha_source" | sed -E 's/.*_[0-9.]+_([0-9.]+)_[0-9.]+_STEPS.*/\1/')
+
+	if [ "$u_perturb_value" != "$alpha_perturb_value"]; then
+		echo "Perturbation value of U ($u_perturb_value) and Alpha ($alpha_perturb_value) do not match; \
+this is currently unsupported by the plotting program 'hubbard_data'."
+		exit 1
+	fi
+
+	local plot_dir
+	plot_dir=plot_"$u_U_steps"
+	if [ ! -d $plot_dir ]; then
+		mkdir $plot_dir
+	fi
+	if [[ -f "$u_source"/result_u_final.csv && -f "$alpha_source"/result_alpha_final.csv ]]; then
+		# Make sure the csv does not have extra space between commas
+		sed -i 's/, /,/g' "$u_source"/result_u_final.csv
+		sed -i 's/, /,/g' "$alpha_source"/result_alpha_final.csv
+		cp "$u_source"/result_u_final.csv "$alpha_source"/result_alpha_final.csv $plot_dir || exit 1
+		# back to $current_dir, which is supposed to have `hubbard_data` bin at the current directory.
+		cd $current_dir || exit 1
+		./hubbard_data -s "$DATA_SOURCE"/$plot_dir "$PERTURB_INCREMENT"
+	elif [ ! -f "$u_source"/result_u_final.csv ]; then
+		echo "$u_source does not have 'result_u_final.csv'! Please double check the files."
+		echo "Now exiting..."
+		exit 1
+	else
+		echo "$alpha_source does not have 'result_alpha_final.csv'! Please double check the files."
+		echo "Now exiting..."
+		exit 1
+	fi
 }

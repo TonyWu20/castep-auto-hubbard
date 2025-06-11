@@ -10,8 +10,6 @@ init_hubbard_u=0.000000010000000
 init_elec_energy_tol=1e-5
 # !!! Please adjust this variable to the actual command to
 # start castep calculation.
-# castep_command_u="qsub hpc.pbs_AU.sh"
-# castep_command_alpha="qsub hpc.pbs_HU.sh"
 castep_program_u="faux_castep_run.sh"
 castep_program_alpha="faux_castep_run.sh"
 castep_command_u="bash ./${castep_program_u} GDY_111_Fe_U"
@@ -48,16 +46,10 @@ fi
 case $run_mode in
 draw)
 	if [[ $2 == '' ]]; then
-		read -r -e -p "Please enter the directory which has 'result_u_final.csv' and 'result_alpha_final.csv':" data_source
+		read -r -e -p "Please enter the seed directory, which has the folders starting with 'SEED_u_x_x_x...', 'SEED_alpha_x_x_x': " data_source
 		DATA_SOURCE=$data_source
 	else
 		DATA_SOURCE=$2
-	fi
-	if [[ $3 == '' ]]; then
-		read -r -e -p "Perturb increment (e.g. +0.05/per step): " increment
-		PERTURB_INCREMENT=${increment:-0.05}
-	else
-		PERTURB_INCREMENT=$3
 	fi
 	use_hubbard_data
 	;;
