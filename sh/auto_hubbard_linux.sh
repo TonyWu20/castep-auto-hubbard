@@ -10,10 +10,13 @@ init_hubbard_u=0.000000010000000
 init_elec_energy_tol=1e-5
 # !!! Please adjust this variable to the actual command to
 # start castep calculation.
-castep_command_u="qsub hpc.pbs_AU.sh"
-castep_command_alpha="qsub hpc.pbs_HU.sh"
-# castep_command_u="faux_castep_run GDY_111_Fe_U"
-# castep_command_alpha="faux_castep_run GDY_111_Fe_U"
+# castep_command_u="qsub hpc.pbs_AU.sh"
+# castep_command_alpha="qsub hpc.pbs_HU.sh"
+castep_program_u="faux_castep_run.sh"
+castep_program_alpha="faux_castep_run.sh"
+castep_command_u="bash ./${castep_program_u} GDY_111_Fe_U"
+castep_command_alpha="bash ./${castep_program_alpha} GDY_111_Fe_U"
+script_path=$(pwd)
 
 source "$(dirname "$0")"/functions_linux.sh
 
@@ -62,6 +65,10 @@ serial | parallel)
 	# Second argument is seed file folder path
 	if [[ $2 == '' ]]; then
 		read -r -e -p "seed file folder path:" SEED_PATH
+		# Force to give input
+		while [[ $SEED_PATH == '' ]]; do
+			read -r -e -p "seed file folder path:" SEED_PATH
+		done
 	else
 		SEED_PATH=$2
 	fi
@@ -130,7 +137,7 @@ serial | parallel)
 	setup "$init_hubbard_u" "$init_elec_energy_tol" "$init_input_U" "$U_increment" "$final_U" "$job_type"
 	setup_new_seed_folder
 	setup_perturbation "$PERTURB_INIT_ALPHA" "$PERTURB_INCREMENT" "$PERTURB_FINAL_ALPHA"
-	setup_castep_command "$castep_command_u" "$castep_command_alpha"
+	setup_castep_command "$castep_command_u" "$castep_command_alpha" "$castep_program_u" "$castep_program_alpha"
 
 	N=32
 	case $run_mode in

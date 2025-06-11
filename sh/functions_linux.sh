@@ -43,7 +43,9 @@ function setup_new_seed_folder {
 	cd "$SEED_PATH" || exit
 	# cd into $SEED_PATH
 	echo "setup_new_seed_folder:${pwd}"
-	mkdir $new_seed_path
+	if [ ! -d $new_seed_path ]; then
+		mkdir $new_seed_path
+	fi
 	echo "Use 'find' to filter out result files and directory and then copy to new folder"
 	find . -maxdepth 1 -type f -name "*.param" -o -type f -name "*.cell" | xargs -I {} cp {} "$new_seed_path"/{}
 	# Set the next $SEED_PATH to this created_folder as the base.
@@ -74,6 +76,8 @@ function setup_perturbation {
 function setup_castep_command {
 	castep_command_u=$1
 	castep_command_alpha=$2
+	castep_program_u_path="$script_path"/"$3"
+	castep_program_alpha_path="$script_path"/"$4"
 }
 
 function faux_castep_run {
@@ -163,7 +167,7 @@ function setup_before_perturb {
 	mkdir -p "$folder_name"
 	# copy files without '.castep' to U_x
 	echo "copy files"
-	find . -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -print0 | xargs -0 -I {} cp {} "$folder_name"
+	find . -maxdepth 1 -type f -name "*.param" -o -type f -name "*.cell" | xargs -I {} cp {} "$folder_name"/{}
 	echo "$(pwd)"
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
@@ -253,8 +257,14 @@ function start_job {
 	else
 		cd "$job_dir" || exit
 		case $job_type in
-		U | u) castep_command="$castep_command_u" ;;
-		alpha | Alpha) castep_command="$castep_command_alpha" ;;
+		U | u)
+			cp "$castep_program_u_path" "$current_dir"/"$job_dir"/"$castep_program_u"
+			castep_command="$castep_command_u"
+			;;
+		alpha | Alpha)
+			cp "$castep_program_alpha_path" "$current_dir"/"$job_dir"/"$castep_program_alpha"
+			castep_command="$castep_command_alpha"
+			;;
 		*) exit ;;
 		esac
 		# Here is the command to start calculation
@@ -493,5 +503,7 @@ function after_read {
 }
 
 function use_hubbard_data {
+	# Make sure the csv does not have extra space between commas
+	sed -i 's/, /,/' "$DATA_SOURCE"/*.csv
 	./hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
 }
