@@ -504,6 +504,6 @@ function after_read {
 
 function use_hubbard_data {
 	# Make sure the csv does not have extra space between commas
-	sed -i 's/, /,/' "$DATA_SOURCE"/*.csv
+	sed -i 's/, /,/g' "$DATA_SOURCE"/*.csv
 	./hubbard_data -s "$DATA_SOURCE" "$PERTURB_INCREMENT"
 }
