@@ -47,7 +47,8 @@ function setup_new_seed_folder {
 		mkdir $new_seed_path
 	fi
 	echo "Use 'find' to filter out result files and directory and then copy to new folder"
-	find . -maxdepth 1 -type f -name "*.param" -o -type f -name "*.cell" | xargs -I {} cp {} "$new_seed_path"/{}
+	find . -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -not -name "*.xsd" -not -name "*.xms" |
+		xargs -I {} cp {} "$new_seed_path"/{}
 	# Set the next $SEED_PATH to this created_folder as the base.
 	SEED_PATH=$new_seed_path
 	log_path=$(create_log "$job_type")
@@ -167,7 +168,7 @@ function setup_before_perturb {
 	mkdir -p "$folder_name"
 	# copy files without '.castep' to U_x
 	echo "copy files"
-	find . -maxdepth 1 -type f -name "*.param" -o -type f -name "*.cell" | xargs -I {} cp {} "$folder_name"/{}
+	find . -maxdepth 1 -type f -not -name "*.castep" -not -name "*.txt" -not -name "*.csv" -not -name "*.xsd" -not -name "*.xms" | xargs -I {} cp {} "$folder_name"/{}
 	echo "$(pwd)"
 	local cell_file
 	cell_file=$(find ./"$folder_name" -maxdepth 1 -type f -name "*.cell")
