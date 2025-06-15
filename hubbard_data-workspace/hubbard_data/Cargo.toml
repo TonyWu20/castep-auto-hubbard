@@ -1,0 +1,9 @@
+[package]
+name = "hubbard_data"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+hubbard_data_analyze = { version = "0.1.0", path = "../hubbard_data_analyze" }
+hubbard_data_args = { version = "0.1.0", path = "../hubbard_data_args" }

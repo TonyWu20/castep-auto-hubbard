@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = [ "hubbard_data","hubbard_data_analyze", "hubbard_data_args", "hubbard_data_plot"]
+name = "hubbard_data"
+version = "0.1.0"
+edition = "2024"
+

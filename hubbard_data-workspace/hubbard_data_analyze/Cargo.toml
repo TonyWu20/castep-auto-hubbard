@@ -1,0 +1,16 @@
+[package]
+name = "hubbard_data_analyze"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+polars = { version = "0.48.1", features = [
+	"lazy",
+	"concat_str",
+	"strings",
+	"dtype-i128",
+	"csv",
+	"temporal",
+	"fmt",
+], default-features = false }
+thiserror = "2.0.12"
