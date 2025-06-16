@@ -116,6 +116,7 @@ pub struct TotalView<T: JobType> {
 }
 
 impl<T: JobType> TotalView<T> {
+    /// Construct from `DataFrame`
     pub fn new(dataframe: DataFrame) -> Self {
         Self {
             job_type: PhantomData,
@@ -123,6 +124,7 @@ impl<T: JobType> TotalView<T> {
         }
     }
 
+    /// Get method for `dataframe:DataFrame`
     pub fn dataframe(&self) -> &DataFrame {
         &self.dataframe
     }

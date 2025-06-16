@@ -7,3 +7,4 @@ edition = "2024"
 anyhow = "1.0.98"
 hubbard_data_analyze = { version = "0.1.0", path = "../hubbard_data_analyze" }
 hubbard_data_args = { version = "0.1.0", path = "../hubbard_data_args" }
+hubbard_data_plot = { version = "0.1.0", path = "../hubbard_data_plot" }
