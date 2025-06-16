@@ -30,3 +30,4 @@ calculate_hirshfeld : true
 calculate_densdiff : false
 popn_bond_cutoff :        3.000000000000000
 pdos_calculate_weights : true
+iprint : 3
