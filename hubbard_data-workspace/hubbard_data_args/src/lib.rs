@@ -6,7 +6,7 @@ use std::path::PathBuf;
 #[command(about = "Data extraction from Hubbard U/Alpha perturbation runs and plotting.")]
 pub struct HubbardDataCli {
     #[arg(short = 's')]
-    result_folder: Option<PathBuf>,
+    result_folder: PathBuf,
     #[arg(short, long)]
     u_perturb_val: f64,
     #[arg(short, long)]
@@ -16,8 +16,8 @@ pub struct HubbardDataCli {
 }
 
 impl HubbardDataCli {
-    pub fn result_folder(&self) -> Option<&PathBuf> {
-        self.result_folder.as_ref()
+    pub fn result_folder(&self) -> &PathBuf {
+        &self.result_folder
     }
 
     pub fn u_perturb_val(&self) -> f64 {
