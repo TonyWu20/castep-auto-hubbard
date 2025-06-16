@@ -25,3 +25,15 @@ Cargo.lock
 
 # Mac
 **/.DS_store
+
+sh/test_*
+sh/plot
+CASTEP_project_doc/GDY_111_Fe_U/*.usp*
+**/*.bands
+**/*.bib
+**/*.castep
+**/*.castep_bin
+**/*.check
+**/*.cst_esp
+**/*.err
+**/*.pdos_weights
