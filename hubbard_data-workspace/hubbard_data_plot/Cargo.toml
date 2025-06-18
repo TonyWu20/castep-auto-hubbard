@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-charming = { version = "0.5.1", features = ["ssr", "ssr-raster"] }
+charming = { version = "0.6.0", features = ["ssr", "ssr-raster"] }

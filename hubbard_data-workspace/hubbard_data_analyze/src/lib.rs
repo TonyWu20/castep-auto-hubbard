@@ -17,8 +17,10 @@ pub use polars::prelude::{CsvWriter, DataFrame};
 mod tests {
     use std::path::Path;
 
+    use polars::prelude::{IntoLazy, col};
+
     use crate::{
-        analysis::channel_view::MergedLazyChannel,
+        analysis::{Functor, channel_view::MergedLazyChannel},
         job_type::{Alpha, JobType, U},
     };
     #[test]
@@ -34,6 +36,26 @@ mod tests {
         MergedLazyChannel::merge_u_alpha_channel_view(&result_df_u, &result_df_alpha)
             .unwrap()
             .into_iter()
-            .for_each(|merged| println!("{}", merged.view_mean().unwrap()));
+            .for_each(|merged| {
+                println!(
+                    "{}",
+                    merged
+                        .map(|m| m
+                            .0
+                            .lazy()
+                            .group_by_stable([col("U")])
+                            .agg([
+                                col(U::delta_slope_col_alias()).mean(),
+                                col(Alpha::delta_slope_col_alias()).mean(),
+                            ])
+                            .select([
+                                col("U"),
+                                col(U::delta_slope_col_alias()),
+                                col(Alpha::delta_slope_col_alias()),
+                            ])
+                            .collect())
+                        .unwrap()
+                );
+            });
     }
 }

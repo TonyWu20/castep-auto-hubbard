@@ -13,7 +13,7 @@
     };
   };
 
-  outputs = { self, fenix, flake-utils, naersk, nixpkgs, ... }:
+  outputs = { fenix, flake-utils, naersk, nixpkgs, ... }:
     flake-utils.lib.eachDefaultSystem (system: {
       packages.default =
         let
@@ -29,9 +29,10 @@
           cargo = toolchain;
           rustc = toolchain;
         }).buildPackage {
+          enableParallelBuilding = true;
           src = ./.;
           CARGO_BUILD_TARGET = target;
-          nativeBuildInputs = [ pkgs.pkg-config ];
+          nativeBuildInputs = [ pkgs.pkg-config pkgs.curl pkgs.python3 ];
           buildInputs = [ pkgs.fontconfig ];
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER =
             let

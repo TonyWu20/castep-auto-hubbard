@@ -1,13 +1,14 @@
 use mean_view::ChannelMeanView;
 use polars::{
     error::PolarsError,
+    frame::DataFrame,
     functions::concat_df_horizontal,
     prelude::{ChunkUnique, IntoLazy, LazyFrame, col, lit},
 };
 
 use crate::job_type::{Alpha, JobType, U};
 
-use super::total_view::TotalView;
+use super::{Functor, total_view::TotalView};
 
 pub mod mean_view;
 
@@ -41,6 +42,18 @@ impl<T: JobType> TotalView<T> {
     }
 }
 
+impl TotalView<Alpha> {
+    /// Generate the dataframe to be concatenated with U dataframe.
+    pub fn to_be_merged(&self, channel_id: u32) -> Result<DataFrame, PolarsError> {
+        self.view_by_channel_id(channel_id)
+            .select([
+                col(Alpha::nth_perturb_col_alias()),
+                col(Alpha::delta_slope_col_alias()),
+            ])
+            .collect()
+    }
+}
+
 /// The result of merging dataframes from `result_u_final` and `result_alpha_final`
 pub struct MergedLazyChannel(pub(crate) LazyFrame);
 
@@ -71,13 +84,7 @@ impl MergedLazyChannel {
                     concat_df_horizontal(
                         &[
                             df_u.view_by_channel_id(channel_u).collect()?,
-                            df_alpha
-                                .view_by_channel_id(channel_alpha)
-                                .select([
-                                    col(Alpha::nth_perturb_col_alias()),
-                                    col(Alpha::delta_slope_col_alias()),
-                                ])
-                                .collect()?,
+                            df_alpha.to_be_merged(channel_alpha)?,
                         ],
                         false,
                     )?
@@ -119,3 +126,5 @@ impl MergedLazyChannel {
         ))
     }
 }
+
+impl Functor for MergedLazyChannel {}
