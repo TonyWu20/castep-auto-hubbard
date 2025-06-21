@@ -7,8 +7,13 @@
 mod analysis;
 mod job_type;
 
-pub use analysis::channel_view::{MergedLazyChannel, Plottable, mean_view::ChannelMeanView};
-pub use analysis::total_view::{CsvPath, TotalView};
+pub use analysis::{
+    HubbardUPlot, Pipeline,
+    channel_view::{ChannelMeanView, ChannelView},
+    csv_path::CSVPath,
+    merged_view::{ChannelMergedMeanView, ChannelMergedView},
+    total_view::TotalView,
+};
 pub use job_type::{Alpha, JobType, U};
 pub use polars::io::SerWriter;
 pub use polars::prelude::{CsvWriter, DataFrame};
@@ -17,45 +22,38 @@ pub use polars::prelude::{CsvWriter, DataFrame};
 mod tests {
     use std::path::Path;
 
-    use polars::prelude::{IntoLazy, col};
+    use polars::{error::PolarsError, frame::DataFrame};
 
-    use crate::{
-        analysis::{Functor, channel_view::MergedLazyChannel},
-        job_type::{Alpha, JobType, U},
-    };
+    use crate::{Alpha, ChannelMergedMeanView, JobType, Pipeline, U};
+
     #[test]
     fn it_works() {
         let result_folder = Path::new("../../sorting");
 
         let result_df_u = U::csv_path(result_folder).process_data(0.05).unwrap();
         println!("U");
-        println!("{}", *result_df_u);
         let result_df_alpha = Alpha::csv_path(result_folder).process_data(0.05).unwrap();
         println!("Alpha");
-        println!("{}", *result_df_alpha);
-        MergedLazyChannel::merge_u_alpha_channel_view(&result_df_u, &result_df_alpha)
-            .unwrap()
-            .into_iter()
-            .for_each(|merged| {
-                println!(
-                    "{}",
-                    merged
-                        .map(|m| m
-                            .0
-                            .lazy()
-                            .group_by_stable([col("U")])
-                            .agg([
-                                col(U::delta_slope_col_alias()).mean(),
-                                col(Alpha::delta_slope_col_alias()).mean(),
-                            ])
-                            .select([
-                                col("U"),
-                                col(U::delta_slope_col_alias()),
-                                col(Alpha::delta_slope_col_alias()),
-                            ])
-                            .collect())
-                        .unwrap()
-                );
-            });
+        let channels_u = result_df_u.channels();
+        let channels_alpha = result_df_alpha.channels();
+        channels_u
+            .iter()
+            .zip(channels_alpha.iter())
+            .map(
+                |(&chan_u, &chan_alpha)| -> Result<
+                    Pipeline<U, ChannelMergedMeanView, DataFrame>,
+                    PolarsError,
+                > {
+                    result_df_u
+                        .to_channel_view(chan_u)
+                        .concat_alpha(result_df_alpha.to_channel_view(chan_alpha))?
+                    .view_mean()
+
+                },
+            )
+            .try_for_each(|result_view| {
+                println!("{}", result_view?.data());
+                Ok::<(), PolarsError>(())
+            }).expect("Pipeline demonstration fail");
     }
 }

@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use polars::prelude::{DataType, Expr, col, fold_exprs, lit};
 
-use crate::analysis::total_view::CsvPath;
+use crate::analysis::{Pipeline, csv_path::CSVPath};
 
 /// Represents the job type of hubbard perturbation run:
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -13,11 +13,11 @@ pub struct U;
 pub struct Alpha;
 
 /// Common methods for a type representing a Hubbard perturbation task.
-pub trait JobType {
+pub trait JobType: Sized {
+    /// Current job type in `String`
+    fn job_type() -> String;
     /// result csv filename
-    fn csv_path<P: AsRef<Path>>(directory: P) -> CsvPath<Self>
-    where
-        Self: std::marker::Sized;
+    fn csv_path<P: AsRef<Path>>(directory: P) -> Pipeline<Self, CSVPath<Self>, PathBuf>;
     /// Alias for column of perturbation
     fn nth_perturb_col_alias() -> String;
     /// Alias for column of slope for 1st SCF - Before SCF.
@@ -58,8 +58,8 @@ pub trait JobType {
 }
 
 impl JobType for U {
-    fn csv_path<P: AsRef<Path>>(directory: P) -> CsvPath<U> {
-        CsvPath::new(directory.as_ref().join("result_u_final.csv"))
+    fn csv_path<P: AsRef<Path>>(directory: P) -> Pipeline<Self, CSVPath<Self>, PathBuf> {
+        Pipeline::new(directory.as_ref().join("result_u_final.csv"))
     }
 
     /// "u_pert"
@@ -67,14 +67,17 @@ impl JobType for U {
         "u_pert".into()
     }
 
+    /// "u/S1-S0"
     fn slope_first_col_alias() -> String {
         "u/S1-S0".into()
     }
 
+    /// "u/SF-S0"
     fn slope_final_col_alias() -> String {
         "u/SF-S0".into()
     }
 
+    /// "n1-nF_U"
     fn delta_slope_col_alias() -> String {
         "n1-nF_U".into()
     }
@@ -92,25 +95,34 @@ impl JobType for U {
             .cast(DataType::Int32)
             .alias(Self::nth_perturb_col_alias())
     }
+
+    /// "U"
+    fn job_type() -> String {
+        "U".into()
+    }
 }
 
 impl JobType for Alpha {
-    fn csv_path<P: AsRef<Path>>(directory: P) -> CsvPath<Alpha> {
-        CsvPath::new(directory.as_ref().join("result_alpha_final.csv"))
+    fn csv_path<P: AsRef<Path>>(directory: P) -> Pipeline<Self, CSVPath<Self>, PathBuf> {
+        Pipeline::new(directory.as_ref().join("result_alpha_final.csv"))
     }
 
+    /// "alpha_pert"
     fn nth_perturb_col_alias() -> String {
         "alpha_pert".into()
     }
 
+    /// "alpha/S1-S0"
     fn slope_first_col_alias() -> String {
         "alpha/S1-S0".into()
     }
 
+    /// "alpha/SF-S0"
     fn slope_final_col_alias() -> String {
         "alpha/SF-S0".into()
     }
 
+    /// "n1-nF_Alpha"
     fn delta_slope_col_alias() -> String {
         "n1-nF_Alpha".into()
     }
@@ -127,5 +139,10 @@ impl JobType for Alpha {
             )
             .cast(DataType::Int32)
             .alias(Self::nth_perturb_col_alias())
+    }
+
+    /// "Alpha"
+    fn job_type() -> String {
+        "Alpha".into()
     }
 }
