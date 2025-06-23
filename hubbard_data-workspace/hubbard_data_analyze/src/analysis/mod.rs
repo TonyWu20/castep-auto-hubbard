@@ -53,6 +53,11 @@ impl<T: JobType, U: ViewType<T>, D: Clone> Pipeline<T, U, D> {
     pub fn data(&self) -> &D {
         &self.data
     }
+
+    /// Get mut reference of data
+    pub fn data_mut(&mut self) -> &mut D {
+        &mut self.data
+    }
 }
 
 /// To be able to plot with `hubbard_data_plot`
