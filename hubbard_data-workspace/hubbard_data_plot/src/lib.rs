@@ -12,7 +12,7 @@ use charming::{
 
 pub fn plot_channel_mean<P: AsRef<Path>>(
     xs: &[String],
-    ys: &[(String, Vec<f64>); 2],
+    ys: &[(String, Vec<f64>)],
     channel_id: u32,
     result_folder: P,
 ) -> Result<(), EchartsError> {
