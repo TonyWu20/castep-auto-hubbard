@@ -90,7 +90,8 @@ fn analyze_both(cli: &HubbardDataCli) -> Result<(), anyhow::Error> {
             let mut concat_mean = concat_mean?;
             let file = File::create(dest_dir.join(format!("channel_{}_mean.csv", c_u)))?;
             CsvWriter::new(file).finish(concat_mean.data_mut())?;
-            let ploter = PlotHub::new(&xs, &ys, channel_id, &dest_dir);
+            let (xs, ys) = (concat_mean.xs(), concat_mean.ys());
+            let ploter = PlotHub::new(&xs, &ys, c_u, &dest_dir);
             ploter.plot_channel_mean()?;
             Ok::<(), anyhow::Error>(())
         })?;
