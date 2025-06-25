@@ -16,7 +16,7 @@ pub use analysis::{
 };
 pub use job_type::{Alpha, JobType, U};
 pub use polars::io::SerWriter;
-pub use polars::prelude::{CsvWriter, DataFrame};
+pub use polars::prelude::{CsvWriter, DataFrame, LazyFrame};
 
 #[cfg(test)]
 mod tests {
@@ -32,6 +32,7 @@ mod tests {
 
         let result_df_u = U::csv_path(result_folder).process_data(0.05).unwrap();
         println!("U");
+        println!("{}", result_df_u.data().clone().collect().unwrap());
         let result_df_alpha = Alpha::csv_path(result_folder).process_data(0.05).unwrap();
         println!("Alpha");
         let channels_u = result_df_u.channels();
@@ -55,5 +56,23 @@ mod tests {
                 println!("{}", result_view?.data());
                 Ok::<(), PolarsError>(())
             }).expect("Pipeline demonstration fail");
+    }
+    #[test]
+    fn it_works_single() {
+        let result_folder = Path::new("../../NiO");
+        let result_df_u = U::csv_path(result_folder).process_data(0.05).unwrap();
+        println!("U");
+        println!("{}", result_df_u.data().clone().collect().unwrap());
+        let channels_u = result_df_u.channels();
+        channels_u
+            .iter()
+            .map(|&i| {
+                let mean = result_df_u.to_channel_view(i).to_mean_view().unwrap();
+                (i, mean)
+            })
+            .for_each(|(i, mean)| {
+                println!("Channel: {i}");
+                println!("{}", mean.data());
+            });
     }
 }

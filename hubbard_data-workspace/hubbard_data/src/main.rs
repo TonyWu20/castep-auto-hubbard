@@ -1,10 +1,10 @@
 use std::{
     fs::{File, create_dir_all},
-    iter::Map,
+    path::Path,
 };
 
 use hubbard_data_analyze::{
-    Alpha, ChannelMeanView, CsvWriter, DataFrame, HubbardUPlot, JobType, Pipeline, SerWriter, U,
+    Alpha, CsvWriter, HubbardUPlot, JobType, LazyFrame, Pipeline, SerWriter, TotalView, U,
 };
 use hubbard_data_args::{HubbardDataCli, Parser};
 use hubbard_data_plot::plot_channel_mean;
@@ -18,15 +18,22 @@ fn main() -> Result<(), anyhow::Error> {
         hubbard_data_args::Mode::U => {
             let dest_dir = cli.result_folder().join(format!("plot_{}", U::job_type()));
             create_dir_all(&dest_dir).ok();
-            analyze_one_frame::<U>(&cli)?.try_for_each(|result| {
-                let (channel_id, mut df_mean) = result?;
-                let file =
-                    File::create(dest_dir.join(format!("channel_{}_mean_U.csv", channel_id)))?;
-                CsvWriter::new(file).finish(df_mean.data_mut())?;
-                let (xs, ys) = (df_mean.xs(), df_mean.ys());
-                plot_channel_mean(&xs, &ys, channel_id, &dest_dir)?;
-                Ok::<(), anyhow::Error>(())
-            })?;
+            let df = <U>::csv_path(cli.result_folder())
+                .process_data(cli.perturb_value().try_into_single()?)?;
+            write_channel_total_view(&df, &dest_dir)?;
+            df.channels()
+                .into_iter()
+                .map(|i| (i, df.to_channel_view(i).to_mean_view()))
+                .try_for_each(|result| {
+                    let (channel_id, df_mean) = result;
+                    let mut df_mean = df_mean?;
+                    let file =
+                        File::create(dest_dir.join(format!("channel_{}_mean_U.csv", channel_id)))?;
+                    CsvWriter::new(file).finish(df_mean.data_mut())?;
+                    let (xs, ys) = (df_mean.xs(), df_mean.ys());
+                    plot_channel_mean(&xs, &ys, channel_id, &dest_dir)?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
             Ok(())
         }
         hubbard_data_args::Mode::Alpha => unimplemented!(),
@@ -64,21 +71,17 @@ fn analyze_both(cli: &HubbardDataCli) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[allow(clippy::type_complexity)]
-/// Directly return the iterator, prevent early collect
-fn analyze_one_frame<'a, T: JobType + 'a>(
-    cli: &'a HubbardDataCli,
-) -> Result<
-    Map<
-        std::vec::IntoIter<u32>,
-        impl FnMut(u32) -> Result<(u32, Pipeline<T, ChannelMeanView<T>, DataFrame>), anyhow::Error>,
-    >,
-    anyhow::Error,
-> {
-    let df =
-        T::csv_path(cli.result_folder()).process_data(cli.perturb_value().try_into_single()?)?;
-    Ok(df
-        .channels()
+fn write_channel_total_view<T: JobType>(
+    df: &Pipeline<T, TotalView<T>, LazyFrame>,
+    dest_dir: &Path,
+) -> Result<(), anyhow::Error> {
+    df.channels()
         .into_iter()
-        .map(move |i| Ok((i, df.to_channel_view(i).to_mean_view()?))))
+        .map(|i| (i, df.to_channel_view(i).data().clone().collect()))
+        .try_for_each(|(i, frame)| {
+            let file = File::create(dest_dir.join(format!("channel_{}_total.csv", i)))?;
+            CsvWriter::new(file).finish(&mut frame?)?;
+            Ok::<(), anyhow::Error>(())
+        })?;
+    Ok(())
 }
