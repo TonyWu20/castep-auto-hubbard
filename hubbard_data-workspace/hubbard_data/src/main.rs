@@ -7,7 +7,7 @@ use hubbard_data_analyze::{
     Alpha, CsvWriter, HubbardUPlot, JobType, LazyFrame, Pipeline, SerWriter, TotalView, U,
 };
 use hubbard_data_args::{HubbardDataCli, Parser};
-use hubbard_data_plot::plot_channel_mean;
+use hubbard_data_plot::PlotHub;
 
 /// Can run for both U and Alpha results or U results only.
 /// Since I don't have the castep code that can handle `HUBBARD_ALPHA` section, leave the Alpha-single run mode unimplemented
@@ -31,12 +31,37 @@ fn main() -> Result<(), anyhow::Error> {
                         File::create(dest_dir.join(format!("channel_{}_mean_U.csv", channel_id)))?;
                     CsvWriter::new(file).finish(df_mean.data_mut())?;
                     let (xs, ys) = (df_mean.xs(), df_mean.ys());
-                    plot_channel_mean(&xs, &ys, channel_id, &dest_dir)?;
+                    let ploter = PlotHub::new(&xs, &ys, channel_id, &dest_dir);
+                    ploter.plot_channel_mean()?;
                     Ok::<(), anyhow::Error>(())
                 })?;
             Ok(())
         }
-        hubbard_data_args::Mode::Alpha => unimplemented!(),
+        hubbard_data_args::Mode::Alpha => {
+            let dest_dir = cli
+                .result_folder()
+                .join(format!("plot_{}", Alpha::job_type()));
+            create_dir_all(&dest_dir).ok();
+            let df = <Alpha>::csv_path(cli.result_folder())
+                .process_data(cli.perturb_value().try_into_single()?)?;
+            write_channel_total_view(&df, &dest_dir)?;
+            df.channels()
+                .into_iter()
+                .map(|i| (i, df.to_channel_view(i).to_mean_view()))
+                .try_for_each(|result| {
+                    let (channel_id, df_mean) = result;
+                    let mut df_mean = df_mean?;
+                    let file = File::create(
+                        dest_dir.join(format!("channel_{}_mean_Alpha.csv", channel_id)),
+                    )?;
+                    CsvWriter::new(file).finish(df_mean.data_mut())?;
+                    let (xs, ys) = (df_mean.xs(), df_mean.ys());
+                    let ploter = PlotHub::new(&xs, &ys, channel_id, &dest_dir);
+                    ploter.plot_channel_mean()?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
+            Ok(())
+        }
     }
 }
 
@@ -65,7 +90,8 @@ fn analyze_both(cli: &HubbardDataCli) -> Result<(), anyhow::Error> {
             let mut concat_mean = concat_mean?;
             let file = File::create(dest_dir.join(format!("channel_{}_mean.csv", c_u)))?;
             CsvWriter::new(file).finish(concat_mean.data_mut())?;
-            plot_channel_mean(&concat_mean.xs(), &concat_mean.ys(), c_u, &dest_dir)?;
+            let ploter = PlotHub::new(&xs, &ys, channel_id, &dest_dir);
+            ploter.plot_channel_mean()?;
             Ok::<(), anyhow::Error>(())
         })?;
     Ok(())
@@ -75,6 +101,9 @@ fn write_channel_total_view<T: JobType>(
     df: &Pipeline<T, TotalView<T>, LazyFrame>,
     dest_dir: &Path,
 ) -> Result<(), anyhow::Error> {
+    let mut total_view = df.data().clone().collect()?;
+    let file = File::create(dest_dir.join(format!("sorted_{}.csv", T::job_type())))?;
+    CsvWriter::new(file).finish(&mut total_view)?;
     df.channels()
         .into_iter()
         .map(|i| (i, df.to_channel_view(i).data().clone().collect()))
