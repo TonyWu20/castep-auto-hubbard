@@ -1,104 +1,126 @@
 use std::{fs::read_to_string, path::Path};
 
-use castep_cell_parser::{BlockIO, CELLObject, CELLParser, Rule};
-use pest::Parser;
-
-use super::{
-    hubbard::{HubbardBlock, HubbardType},
-    JobType,
+use castep_cell_data::{
+    cell::{
+        bz_sampling_kpoints::KpointsList,
+        constraints::{CellConstraints, FixCOM, IonicConstraints},
+        external_fields::ExternalEfield,
+        lattice_param::LatticeCart,
+        positions::PositionsFrac,
+        species::{
+            AtomHubbardU, HubbardAlpha, HubbardU, QuantizationAxis, SpeciesLcaoStates, SpeciesMass,
+            SpeciesPot,
+        },
+    },
+    from_str, to_string, ToCell, ToCellFile, ToCellFileDerive,
 };
+use serde::{Deserialize, Serialize};
+
+use super::JobType;
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToCellFileDerive)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct HubbardUCellFile {
+    lattice_cart: LatticeCart,
+    positions_frac: PositionsFrac,
+    kpoints_list: KpointsList,
+    cell_constraints: CellConstraints,
+    fix_com: FixCOM,
+    ionic_constraints: IonicConstraints,
+    external_efield: ExternalEfield,
+    species_mass: SpeciesMass,
+    species_pot: SpeciesPot,
+    species_lcao_states: SpeciesLcaoStates,
+    hubbard_u: HubbardU,
+    hubbard_alpha: Option<HubbardAlpha>,
+    quantization_axis: QuantizationAxis,
+}
+
+/// Compute the desired values for initial `HUBBARD_U` and `HUBBARD_ALPHA`
+/// # Return
+/// (hubbard_u, hubbard_alpha)
+fn hubbard_init_value(init_hubbard_u: f64, u_step: i32, job_type: JobType) -> (f64, f64) {
+    // Calculate current u_value to use
+    let i_u_value = init_hubbard_u + u_step as f64;
+    // Determine the u and alpha values based on job types
+    match job_type {
+        // For U jobs, `HUBBARD_U` section uses the incremented `i_u_value`,
+        // while `HUBBARD_ALPHA` section keeps the initial u value intact
+        JobType::U => (i_u_value, init_hubbard_u),
+        // For alpha jobs, `HUBBARD_U` section keeps the initial u value intact,
+        // while `HUBBARD_ALPHA` section uses the incremented `i_u_value`
+        JobType::Alpha => (init_hubbard_u, i_u_value),
+    }
+}
 
 /// Initialize hubbard U and Alpha value for each step
+/// # Arguments
+/// - init_hubbard_u: initial value of hubbard u, e.g.: 0.000000010000000
+/// - u_step: increment value for this operation, i32, e.g.: 2
+/// - job_type: `JobType::U` or `JobType::Alpha`, determine the values to be set in `HUBBARD_U`
+///   and `HUBBARD_ALPHA` blocks in `.cell` files
+/// - cell_file: Path to the template `.cell` file.
+/// # Return
+/// - Ok(String): modified `.cell` content in `String`
 pub fn hubbard_init<P: AsRef<Path>>(
     init_hubbard_u: f64,
     u_step: i32,
     job_type: JobType,
     cell_file: P,
 ) -> Result<String, anyhow::Error> {
-    let i_u_value = init_hubbard_u + u_step as f64;
-    let (u_value, alpha_value) = match job_type {
-        JobType::U => (i_u_value, init_hubbard_u),
-        JobType::Alpha => (init_hubbard_u, i_u_value),
-    };
+    // Determine the u and alpha values based on job types
+    let (u_value, alpha_value) = hubbard_init_value(init_hubbard_u, u_step, job_type);
+    // Read `.cell` to string
     let cell_content = read_to_string(cell_file.as_ref())?;
-    let mut parsed_cell =
-        CELLParser::cell_doc_map(CELLParser::parse(Rule::cell_doc, &cell_content)?);
+    // Parse string into `ParsedCellDoc`, a `HashMap<&str, CELLObject>` wrapper struct.
+    let mut parsed_cell = from_str::<HubbardUCellFile>(&cell_content)?;
     // Set hubbard u
     // Currently, modify all u value
-    parsed_cell.entry("HUBBARD_U").and_modify(|object| {
-        let order = object.as_block().unwrap().order();
-        let mut hubbard_block = HubbardBlock::from_block(object.as_block().unwrap()).unwrap();
-        hubbard_block.settings_mut().iter_mut().for_each(|item| {
-            item.set_hub_value(u_value);
+    // Since `HUBBARD_U` block is guaranteed to exist in our provided `.cell` files,
+    // use `entry` and `and_modify` method of `HashMap` to modify it inplace.
+    parsed_cell
+        .hubbard_u
+        .atom_u_values
+        .iter_mut()
+        .for_each(|atom_hubbard_u| {
+            atom_hubbard_u
+                .orbitals
+                .iter_mut()
+                .for_each(|orbital| orbital.set_u_value(u_value));
         });
-        *object = CELLObject::Block(hubbard_block.to_block(order));
-    });
     // Set hubbard alpha
-    // Currently, modify all u value
-    let order = parsed_cell.len(); // Inserting a new entry
-    match parsed_cell.get_mut("HUBBARD_ALPHA") {
-        Some(alpha) => {
-            let alpha_block = alpha.as_block().unwrap();
-            let mut alpha_block = HubbardBlock::from_block(alpha_block).unwrap();
-            alpha_block.settings_mut().iter_mut().for_each(|item| {
-                item.set_hub_value(alpha_value);
+    // Currently, modify all alpha value
+    // Since `HUBBARD_ALPHA` block is not generated by default,
+    parsed_cell.hubbard_alpha = parsed_cell.hubbard_alpha.map_or_else(
+        || {
+            let cloned_atom_u_values = parsed_cell.hubbard_u.clone();
+            let atom_u_values = cloned_atom_u_values
+                .atom_u_values
+                .into_iter()
+                .map(|mut atom| {
+                    atom.orbitals
+                        .iter_mut()
+                        .for_each(|orbital| orbital.set_u_value(alpha_value));
+                    atom
+                })
+                .collect::<Vec<AtomHubbardU>>();
+            Some(HubbardAlpha {
+                unit: cloned_atom_u_values.unit,
+                atom_u_values,
+            })
+        },
+        |mut alpha| {
+            alpha.atom_u_values.iter_mut().for_each(|atom_hubbard_u| {
+                atom_hubbard_u
+                    .orbitals
+                    .iter_mut()
+                    .for_each(|orbital| orbital.set_u_value(alpha_value));
             });
-        }
-        None => {
-            let u_block = HubbardBlock::from_block(
-                parsed_cell
-                    .get("HUBBARD_U")
-                    .and_then(|obj| obj.as_block())
-                    .expect("Already have HUBBARD_U block"),
-            )
-            .unwrap();
-            let mut settings = u_block.settings().to_vec();
-            settings.iter_mut().for_each(|item| {
-                item.set_hub_value(alpha_value);
-            });
-            let new_alpha_block =
-                CELLObject::Block(HubbardBlock::new(HubbardType::Alpha, settings).to_block(order));
-            parsed_cell.insert("HUBBARD_ALPHA", new_alpha_block);
-        }
-    };
-    Ok(CELLParser::ordered_cell_doc(&parsed_cell).to_string())
-
-    // let cell_content = cell_content.replace("\r\n", "\n");
-    // let replace_curr_u_regex = Regex::new(r"([spdf]):.*").unwrap();
-    // let curr_u_replaced = replace_curr_u_regex
-    //     .replace_all(&cell_content, |caps: &Captures| {
-    //         format!("{}: {:.15}", &caps[1], u_value)
-    //     })
-    //     .to_string();
-    // // (?ms) sets flags m and s, which enable the multiline 19 and
-    // // dot_matches_new_line 10 modes, respectively.
-    // let hubbard_u_re = Regex::new(r"(?ms)\%BLOCK HUBBARD_U\s+(.+?)%ENDBLOCK HUBBARD_U").unwrap();
-    // let Some(caps) = hubbard_u_re.captures(&curr_u_replaced) else {
-    //     eprintln!("No match");
-    //     return Ok(());
-    // };
-    // let hubbard_alpha_re = Regex::new(r"_U").unwrap();
-    // let hubbard_alpha = hubbard_alpha_re.replace_all(&caps[0], "_ALPHA").to_string();
-    // let hubbard_alpha_value = Regex::new(":.*")
-    //     .unwrap()
-    //     .replace_all(&hubbard_alpha, format!(": {:.15}", alpha_value))
-    //     .to_string();
-    // let new_cell_context = [curr_u_replaced, hubbard_alpha_value].join("\n");
-    // let new_cell_file = cell_file.as_ref().with_extension("bak");
-    // write(&new_cell_file, new_cell_context)?;
-    // #[cfg(debug_assertions)]
-    // {
-    //     println!(
-    //         "New cell content has been written to {}",
-    //         new_cell_file.display()
-    //     );
-    //     Ok(())
-    // }
-    // #[cfg(not(debug_assertions))]
-    // {
-    //     use std::fs::rename;
-    //     rename(new_cell_file, cell_file.as_ref())
-    // }
+            Some(alpha)
+        },
+    );
+    // Return the ordered cell doc, which keeps the original look of the given `.cell`
+    Ok(to_string(&parsed_cell.to_cell_file())?)
 }
 
 #[cfg(test)]

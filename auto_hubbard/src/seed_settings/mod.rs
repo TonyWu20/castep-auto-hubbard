@@ -3,9 +3,11 @@ use std::{fmt::Display, str::FromStr};
 use clap::ValueEnum;
 
 mod cell_setup;
-mod hubbard;
 mod param_setup;
 
+pub use cell_setup::{hubbard_init, HubbardUCellFile};
+
+/// Determine we are running U or Alpha round.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum JobType {
     U,
