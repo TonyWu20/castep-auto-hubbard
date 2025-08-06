@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::env;
+use std::env::current_dir;
 use std::fmt::Display;
 use std::io;
 use std::io::Write;
@@ -125,7 +127,9 @@ impl ReadArgs {
         }
     }
     pub fn invoke(&self) -> Result<(), io::Error> {
-        let output = Command::new("./auto_hubbard_linux.sh")
+        let program = current_dir().unwrap().join("auto_hubbard_linux.sh");
+        let output = Command::new("bash")
+            .arg(program)
             .arg(&self.result_path)
             .arg(self.jobtype.unwrap().to_string())
             .arg("read")
@@ -167,7 +171,9 @@ pub struct CalcArgs {
 
 impl CalcArgs {
     pub fn invoke(&self) -> Result<(), io::Error> {
-        let output = Command::new("./auto_hubbard_linux.sh")
+        let program = current_dir().unwrap().join("auto_hubbard_linux.sh");
+        let output = Command::new("bash")
+            .arg(program)
             .arg(&self.seed_path)
             .arg(self.jobtype.to_string())
             .arg(self.mode.to_string())
