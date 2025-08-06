@@ -1,47 +1,31 @@
-use std::{fmt::Display, str::FromStr};
-
-use clap::ValueEnum;
-
 mod cell_setup;
+mod job_type;
 mod param_setup;
+mod private;
+mod stage;
+mod hubbard_value {
 
-pub use cell_setup::{hubbard_init, HubbardUCellFile};
+    pub trait HubbardJob {
+        fn perturbed_alpha(&self) -> f64;
+        fn u_block_value(&self) -> f64;
+    }
 
-/// Determine we are running U or Alpha round.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub enum JobType {
-    U,
-    Alpha,
-}
+    pub enum HubbardValue {
+        U(f64, f64),
+        Alpha(f64, f64),
+    }
 
-impl Display for JobType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JobType::U => f.write_str("u"),
-            JobType::Alpha => f.write_str("alpha"),
+    impl HubbardValue {
+        pub fn u_block_value(&self) -> f64 {
+            match self {
+                HubbardValue::U(u, _) => *u,
+                HubbardValue::Alpha(u, _) => *u,
+            }
         }
     }
 }
 
-#[derive(Debug)]
-pub struct JobTypeParsingError;
-
-impl Display for JobTypeParsingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Invalid input of JobType (u/U/alpha/Alpha)")
-    }
-}
-
-impl std::error::Error for JobTypeParsingError {}
-
-impl FromStr for JobType {
-    type Err = JobTypeParsingError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "u" | "U" => Ok(Self::U),
-            "alpha" | "Alpha" => Ok(Self::Alpha),
-            _ => Err(JobTypeParsingError),
-        }
-    }
-}
+pub use cell_setup::{CellFile, HubbardUCell};
+pub use job_type::{JobType, JobTypeParsingError};
+pub use param_setup::{HubbardUParam, ParamFile};
+pub use stage::{BeforePerturb, Init, Perturbed, Stage};

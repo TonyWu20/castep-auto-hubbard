@@ -20,8 +20,9 @@ use castep_cell_data::{
     },
     ToCellFileDerive,
 };
-use sealed::Sealed;
 use serde::{Deserialize, Serialize};
+
+use super::{BeforePerturb, Init, Perturbed, Stage};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToCellFileDerive)]
 pub struct ParamFile {
@@ -49,6 +50,7 @@ pub struct ParamFile {
     smearing_width: SmearingWidth,
     spin_fix: SpinFix,
     num_dump_cycles: NumDumpCycles,
+    #[serde(alias = "calculate_ELF")]
     calculate_elf: CalculateElf,
     calculate_stress: CalculateStress,
     popn_calculate: PopnCalculate,
@@ -59,18 +61,19 @@ pub struct ParamFile {
     iprint: Iprint,
 }
 
+#[derive(Debug, Clone)]
 pub struct HubbardUParam<T: Stage> {
-    param: ParamFile,
+    pub param: ParamFile,
     stage: PhantomData<T>,
 }
 
-pub trait Stage: Sealed {}
-
-pub struct Init;
-pub struct BeforePerturb;
-pub struct Perturbed;
-
 impl HubbardUParam<Init> {
+    pub fn from_param(param: ParamFile) -> Self {
+        Self {
+            param,
+            stage: PhantomData,
+        }
+    }
     /// Create a new `.param` for our task.
     pub fn param_before_perturb(
         &self,
@@ -92,10 +95,12 @@ impl HubbardUParam<Init> {
 
 impl HubbardUParam<BeforePerturb> {
     /// Create a new `.param` for perturbation.
+    /// `continuation` is set to `default`
     /// The `elec_energy_tol` will be divided by 10
     pub fn param_after_perturb(&self) -> HubbardUParam<Perturbed> {
         HubbardUParam {
             param: ParamFile {
+                continuation: Some(Continuation("default".to_string())),
                 elec_energy_tol: ElecEnergyTol {
                     value: self.param.elec_energy_tol.value / 10.0,
                     unit: self.param.elec_energy_tol.unit,
@@ -107,17 +112,35 @@ impl HubbardUParam<BeforePerturb> {
     }
 }
 
-mod sealed {
-    use super::{BeforePerturb, Init, Perturbed, Stage};
-
-    pub(super) trait Sealed {}
-    impl Sealed for Init {}
-    impl Sealed for BeforePerturb {}
-    impl Sealed for Perturbed {}
-    impl Stage for Init {}
-    impl Stage for BeforePerturb {}
-    impl Stage for Perturbed {}
-}
-
 #[cfg(test)]
-mod test {}
+mod test {
+    use std::fs::read_to_string;
+
+    use castep_cell_data::{from_str, param::electronic_minimisation::ElecEnergyTol};
+
+    use super::{HubbardUParam, ParamFile};
+
+    #[test]
+    fn test_param() {
+        let param_path = "../sh/test/GDY_111_Fe_U.param";
+        let param_file = from_str::<ParamFile>(&read_to_string(param_path).unwrap())
+            .map(HubbardUParam::from_param)
+            .unwrap();
+        dbg!(&param_file);
+        let before_perturb = param_file.param_before_perturb(ElecEnergyTol {
+            value: 1e-6,
+            unit: None,
+        });
+        dbg!(&before_perturb.param.elec_energy_tol);
+        assert_eq!(
+            before_perturb.param.grid_scale,
+            castep_cell_data::param::basis_set::GridScale(1.7500),
+            "We are testing grid_scale {:?} {:?}",
+            before_perturb.param.grid_scale,
+            castep_cell_data::param::basis_set::GridScale(1.7500),
+        );
+        let after_perturb = before_perturb.param_after_perturb();
+        dbg!(&after_perturb.param.continuation);
+        dbg!(&after_perturb.param.elec_energy_tol);
+    }
+}

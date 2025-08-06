@@ -37,3 +37,5 @@ CASTEP_project_doc/GDY_111_Fe_U/*.usp*
 **/*.cst_esp
 **/*.err
 **/*.pdos_weights
+
+.direnv
