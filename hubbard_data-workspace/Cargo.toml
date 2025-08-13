@@ -13,5 +13,5 @@ edition = "2024"
 [profile.release] # When compiling in release mode
 debug = false     # Exclude debug symbols
 strip = "symbols" # Exclude the rest of the symbols
-opt-level = "z"   # Did not use this, but it equals C++'s optimize for size (O3?)
-lto = true        # Link time optimization, not sure what this does but it helps reduce the size
+# opt-level = "z"   # Did not use this, but it equals C++'s optimize for size (O3?)
+lto = true # Link time optimization, not sure what this does but it helps reduce the size
