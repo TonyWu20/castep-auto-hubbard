@@ -145,4 +145,37 @@ impl JobType for Alpha {
     fn job_type() -> String {
         "Alpha".into()
     }
+
+    fn slope_expr(perturb_step_val: f64) -> [Expr; 2] {
+        let matched_perturb_step_col = Self::nth_perturb_col_alias();
+        let calc_expr = |u_col: Expr, perturb_step_col: Expr, scf_col: Expr, alias: &str| {
+            fold_exprs(
+                lit(1),
+                |acc, val| (acc * val).map(Some),
+                // perturb_step * perturb_step_val * (1 / ΔSCF)
+                // for alpha: U_10_alpha_5 = 10 (alpha base value) + 5 (perturb step) * perturb_step_val
+                [
+                    perturb_step_col * lit(perturb_step_val) + u_col,
+                    lit(1.0) / scf_col,
+                ],
+                false,
+                Some(DataType::Float64),
+            )
+            .alias(alias)
+        };
+        [
+            calc_expr(
+                col("U"),
+                col(&matched_perturb_step_col),
+                col("S1-S0"),
+                &Self::slope_first_col_alias(),
+            ),
+            calc_expr(
+                col("U"),
+                col(&matched_perturb_step_col),
+                col("SF-S0"),
+                &Self::slope_final_col_alias(),
+            ),
+        ]
+    }
 }
